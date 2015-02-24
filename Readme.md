@@ -1,6 +1,6 @@
 This is an attempted pythonification of the Mie code from Guangran Kevin Zhu at 
-http://www.mathworks.de/matlabcentral/fileexchange/30162-cylinder-scattering
-
+http://www.mathworks.de/matlabcentral/fileexchange/30162-cylinder-scattering and
+http://de.mathworks.com/matlabcentral/fileexchange/31119-sphere-scattering
 
 ### Developer's note
 miefield requires a working installation of SciPy and NumPy.
