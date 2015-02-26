@@ -17,7 +17,7 @@ nmed = 1.333 # refractive index of surrounding medium
 ncyl = 1.350 # refractive index of the cylinder
 lD = 12 # distance from center of cylinder to planar detector
 size = 100 # pixel number of the planar detector
-res = 0.5 # pixel size of the detector
+res = 0.5 # pixels per vacuum wavelength at the detector line
 efield = miefield.GetFieldCylinder(radius, nmed, ncyl, lD, size, res)
 
 plt.plot(np.arange(size), efield.real, label="real electric field")
