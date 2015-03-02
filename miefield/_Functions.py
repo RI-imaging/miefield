@@ -17,7 +17,8 @@ __all__ = ["besselh", "besselj", "besselh_derivative",
            "hypot", "ric_besselh", "ric_besselh_derivative",
            "ric_besselj", "ric_besselj_derivative", "legendre",
            "ric_bessely", "ric_bessely_derivative", "kzlegendre",
-           "norm"]
+           "norm",
+           "cart2sph"]
 
 
 def besselh(n, k, z):
@@ -77,7 +78,7 @@ def cart2sph(x,y,z):
          - theta  in [0 pi]
          - phi    in [0 2*pi)
     """    
-    if (x==0 and y==0 and z==0):
+    if (np.all(x==0) and np.all(y==0) and np.all(z==0)):
         r = 0
         theta = 0
         phi = 0
@@ -86,15 +87,15 @@ def cart2sph(x,y,z):
         r       = hypot(hypotxy,z)
         theta   = np.arccos(z/r)
         phi     = 0;
-        if (x == 0 and y == 0):
+        if (np.all(x==0) and np.all(y==0)):
             phi = 0
-        elif (x >= 0 and y >= 0):
+        elif (np.all(x >= 0) and np.all(y >= 0)):
             phi = np.arcsin(y/hypotxy)
-        elif (x <= 0 and y >= 0):
+        elif (np.all(x <= 0) and np.all(y >= 0)):
             phi = np.pi - np.arcsin(y/hypotxy)
-        elif (x <= 0 and y <= 0):
+        elif (np.all(x <= 0) and np.all(y <= 0)):
             phi = np.pi - np.arcsin(y/hypotxy)
-        elif (x >= 0 and y <= 0):
+        elif (np.all(x >= 0) and np.all(y <= 0)):
             phi = 2*np.pi + np.arcsin(y/hypotxy)
     return [r, theta, phi]
 
@@ -181,7 +182,7 @@ def ric_besselj(nu,x):
     ##else
     ##    a = a.transpose()
 
-    J = np.sqrt(np.pi/2.*(np.ones((length(nu),1))*x)) * a.transpose()
+    J = np.sqrt(np.pi/2.*(np.ones((len(nu),1))*x)) * a.transpose()
     return J
 
     ## We could also use the scipy function
@@ -235,7 +236,7 @@ def ric_bessely(nu,x):
     ##else
     ##    a = a.transpose()
 
-    Y = np.sqrt(np.pi/2.*(np.ones((length(nu),1))*x)) * a.transpose()
+    Y = np.sqrt(np.pi/2.*(np.ones((len(nu),1))*x)) * a.transpose()
 
     if (np.sum(x==0) != 0):
         print('ric_bessely evaluated at x=0. Return -inf')
@@ -307,7 +308,7 @@ def ric_besselj_derivative(nu, x, flag=1):
     else:
         raise Exception('This script only handles first and second derivative.')
 
-    temp2 = ones((len(nu), 1))*x
+    temp2 = np.ones((len(nu), 1))*x
     J[np.where(temp2==0)] = 0         # x = 0, all zeros
     temp1 = nu*np.ones((1, length(x)))
     if (flag ==1):

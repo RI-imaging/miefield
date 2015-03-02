@@ -25,9 +25,30 @@ from ._Functions import *
 
 __all__ = ["GetFieldSphere"]
 
+def GetFieldSphere(radius, nmed, nsphe, lD, size, res):
+    sphere = DielectricMaterial(nsphe**2,0.0)
+    background = DielectricMaterial(nmed**2,0.0)
+    reference =  DielectricMaterial(1,0.0)
+    lambref = reference.getElectromagneticWavelength(1.0)
+    xmax = size / res / 2.0
+    # the detector resolution is not dependent on the medium
+    
+    lambref = 3    
+    
+    detector = np.linspace(-xmax, xmax, size, endpoint=True) * lambref
+    sensor_location = np.zeros((3,size))
+    sensor_location[0] = lD*lambref    # optical path length to detector
+    sensor_location[1] = detector
+    sensor_location[2] = detector  ######################
+
+    return getDielectricSphereFieldUnderPlaneWave(radius*lambref, 
+             sphere, background, sensor_location).flatten()
+
+    
+
 
 def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
-                                  sensor_location, frequency, varargin):
+                                  sensor_location, frequency=1):
     """
         Calculate the field scattered by a dielectric sphere centered at
         the origine due to an incident x-polarized plane wave. The
@@ -75,7 +96,7 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
     eps = background.getComplexPermittivity(frequency)
     eta_d = sphere.getIntrinsicImpedance(frequency)
     k_d = sphere.getElectromagneticWaveNumber(frequency)
-    mu_d = sphere.getComplexPermeability(MU_O)
+    mu_d = sphere.getComplexPermeability(frequency)
     eps_d = sphere.getComplexPermittivity(frequency)
     
 
@@ -108,7 +129,7 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
     # sin(theta)*kzlegendre_derivative(nu,1,cos(theta)).  Here I am
     # also using a recursive relation to compute temp1 from temp2,
     # which avoids numerical difficulty when theta == 0 or PI.
-    temp1 = np.zeros((length(nu), len(theta)))
+    temp1 = np.zeros((len(nu), len(theta)))
     temp1[0] = np.cos(theta)
     for n in np.arange(len(nu)-1)+1:
         # matlab: [2,3,4,5,6,7,8,9,10]  (index starts at 1)
@@ -132,7 +153,7 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
     #    np.disp('------')
     
     
-    if r<radius:
+    if np.all(r<radius):
         #num = j.*mu_d/sqrt(mu)*sqrt(eps_d);
         num = 1j*mu_d/np.sqrt(mu)*np.sqrt(eps_d)
         #den =  - sqrt(mu.  *eps_d)    *ones(1,N).       *transpose(ric_besselj(nu,k_d*radius)).    *transpose(ric_besselh_derivative(nu,2,k*radius))...
@@ -257,7 +278,3 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
         
     
     return [E_r, E_theta, E_phi, H_r, H_theta, H_phi]
-
-
-def GetFieldSphere():
-    pass
