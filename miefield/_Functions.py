@@ -77,26 +77,29 @@ def cart2sph(x,y,z):
          - r      in [0 \infty)
          - theta  in [0 pi]
          - phi    in [0 2*pi)
-    """    
-    if (np.all(x==0) and np.all(y==0) and np.all(z==0)):
-        r = 0
-        theta = 0
-        phi = 0
-    else:
-        hypotxy = hypot(x,y)
-        r       = hypot(hypotxy,z)
-        theta   = np.arccos(z/r)
-        phi     = 0;
-        if (np.all(x==0) and np.all(y==0)):
+    """
+
+    for elem in range (0,np.size(x)):
+        if x[elem]==0 and y[elem]==0 and z[elem]==0:
+            r = 0
+            theta = 0
             phi = 0
-        elif (np.all(x >= 0) and np.all(y >= 0)):
-            phi = np.arcsin(y/hypotxy)
-        elif (np.all(x <= 0) and np.all(y >= 0)):
-            phi = np.pi - np.arcsin(y/hypotxy)
-        elif (np.all(x <= 0) and np.all(y <= 0)):
-            phi = np.pi - np.arcsin(y/hypotxy)
-        elif (np.all(x >= 0) and np.all(y <= 0)):
-            phi = 2*np.pi + np.arcsin(y/hypotxy)
+        else:
+            hypotxy = hypot(x,y)
+            r       = hypot(hypotxy,z)
+            theta   = np.arccos(z/r)
+            phi     = 0;
+            #print(r)
+            if x[elem]==0 and y[elem]==0:
+                phi = 0
+            elif x[elem] >= 0 and y[elem] >= 0:
+                phi = np.arcsin(y/hypotxy)
+            elif x[elem] <= 0 and y[elem] >= 0:
+                phi = np.pi - np.arcsin(y/hypotxy)
+            elif x[elem] <= 0 and y[elem] <= 0:
+                phi = np.pi - np.arcsin(y/hypotxy)
+            elif x[elem] >= 0 and y[elem] <= 0:
+                phi = 2*np.pi + np.arcsin(y/hypotxy)
     return [r, theta, phi]
 
 
@@ -182,7 +185,7 @@ def ric_besselj(nu,x):
     ##else
     ##    a = a.transpose()
 
-    J = np.sqrt(np.pi/2.*(np.ones((len(nu),1))*x)) * a.transpose()
+    J = np.dot( np.sqrt(np.pi/2.*(np.ones((len(nu),1))*x)), a.transpose() )
     return J
 
     ## We could also use the scipy function
@@ -271,7 +274,7 @@ def ric_besselh_derivative(nu, K, x, flag=1):
     """
     if (K!=1 and K!=2):
         raise Exception('Improper kind of Hankel function. K must be either 1 or 2.')
-    
+    #print(np.shape(x))
     if (K==1):
         H = ric_besselj_derivative(nu,x,flag) + 1j*ric_bessely_derivative(nu,x,flag)
     else:
@@ -292,25 +295,37 @@ def ric_besselj_derivative(nu, x, flag=1):
     x          Must be a row vector.
     flat       1, first order derivative order; 2, second order derivative
     """
+    #print(np.shape(x))
     x    = x.reshape(1, -1)
     nu   = nu.reshape(-1 ,1)
 
     temp = np.ones((len(nu), 1))*x
+
+    #print("1")
+    #print(np.shape(ric_besselj(nu-1, x)))
+    #print(np.shape(ric_besselj(nu,   x)))
+    #print("2")
+    #print(np.shape(np.dot(  ric_besselj(nu,   x), 1/temp)))
+    #print(np.shape(1/temp))
+    #print("3")
+    #print(np.shape(ric_besselj(nu+1, x)           ))
+    #print("4")
+    
     if (flag == 1):
         J = 0.5*(           ric_besselj(nu-1, x)
-                 + 1/temp * ric_besselj(nu,   x)
-                 -          ric_besselj(nu+1, x)   )
+                 + np.dot(  ric_besselj(nu,   x), 1/temp)
+                 -          ric_besselj(nu+1, x)           )
     elif (flag ==2):
-        J = 0.5*(              ric_besselj_derivative(nu-1, x)
-                 + 1/temp     *ric_besselj_derivative(nu,   x)
-                 - temp**(-2) *ric_besselj(nu, x             )
-                 -             ric_besselj_derivative(nu+1, x)   )
+        J = 0.5*(         ric_besselj_derivative(nu-1, x)
+                 + np.dot(ric_besselj_derivative(nu,   x),  1/temp    )
+                 - np.dot(ric_besselj(nu, x             ),  temp**(-2))
+                 -        ric_besselj_derivative(nu+1, x)               )
     else:
         raise Exception('This script only handles first and second derivative.')
 
     temp2 = np.ones((len(nu), 1))*x
     J[np.where(temp2==0)] = 0         # x = 0, all zeros
-    temp1 = nu*np.ones((1, length(x)))
+    temp1 = nu*np.ones((1, len(x)))
     if (flag ==1):
         J[np.where((temp1==0)*(temp2==0))] = 1
     return J

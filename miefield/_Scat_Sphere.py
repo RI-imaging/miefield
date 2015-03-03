@@ -105,8 +105,10 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
     #N = matcompat.max(N)
 
     nu = np.arange(N) + 1 
-
     [r, theta, phi] = cart2sph(sensor_location[0], sensor_location[1], sensor_location[2])
+    r.resize(len(r),1)
+    theta.resize(len(theta),1)
+    phi.resize(len(phi),1)
     # Compute coefficients 
     a_n = 1j**(-nu) * (2*nu+1) / (nu*(nu+1))
     
@@ -118,7 +120,10 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
     # difficulty when theta == 0 or PI.
     temp2 = np.zeros((len(nu), len(theta)))
     temp2[0] = -1
-    temp2[1] = -3 * np.cos(theta)
+    print(np.shape(( -3 * np.ones((np.size(theta),1)) )))
+    print(np.shape(np.cos(theta)))
+    temp2[1] = ( -3 * np.ones((np.size(theta),1)) ) * np.cos(theta)
+    #################                        temp2(2) = -3*cos(theta); 
     # if N = 10, then nu = [1,2,3,4,5,6,7,8,9,19]
     for n in np.arange(len(nu)-2)+1:
         # matlab: [2,3,4,5,6,7,8,9]
@@ -152,8 +157,9 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
     #    np.disp(np.array(np.hstack(('c_n ', num2str(x[0]), e_n, num2str(x[1])))))
     #    np.disp('------')
     
-    
-    if np.all(r<radius):
+
+if np.all(r<radius):
+
         #num = j.*mu_d/sqrt(mu)*sqrt(eps_d);
         num = 1j*mu_d/np.sqrt(mu)*np.sqrt(eps_d)
         #den =  - sqrt(mu.  *eps_d)    *ones(1,N).       *transpose(ric_besselj(nu,k_d*radius)).    *transpose(ric_besselh_derivative(nu,2,k*radius))...
@@ -171,7 +177,7 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
         e_n =  num*np.ones((1, N))/den*a_n
         
         x = k_d * r
-        
+
         ## Implement (11-239a) in [Balanis1989] 
         #alpha = (transpose(ric_besselj_derivative(nu,x,2))+transpose(ric_besselj(nu,x)))...
         #        .*transpose(kzlegendre(nu,1,cos(theta))*ones(1,nFreq));        
@@ -181,7 +187,7 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
         E_r = -1j*np.cos(phi) * np.sum(d_n*alpha, 1)
         #H_r  = -j*sin(phi)*sum(e_n.*alpha, 2)./eta_d;
         H_r = -1j*np.sin(phi) * np.sum(e_n*alpha, 1)/eta_d
-        
+
         ## Implement (11-239b) in [Balanis1989]
         #alpha = transpose(ric_besselj_derivative(nu,x)).*temp1;
         alpha = np.transpose(ric_besselj_derivative(nu, x))*temp1
@@ -195,7 +201,7 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
         summation = 1j*e_n*alpha - d_n*beta
         # H_theta = sin(phi)./x.*sum(summation,2)./eta_d;
         H_theta = np.sin(phi)/x*np.sum(summation, 1)/eta_d
-        
+
         ## Implement (11-239c) in [Balanis1989]
         # alpha = transpose(ric_besselj_derivative(nu,x)).*temp2;
         alpha = np.transpose(ric_besselj_derivative(nu, x))*temp2
@@ -209,33 +215,38 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
         summation = 1j*e_n*alpha - d_n*beta
         # H_phi     =-cos(phi)./x.*sum(summation,2)./eta_d;
         H_phi = -np.cos(phi)/x*np.sum(summation, 1)/eta_d
-        
+
     else:
+
         # num =  + sqrt(mu_d.*eps)*ones(1,N).      *transpose(ric_besselj(nu,k*radius))  .     *transpose(ric_besselj_derivative(nu,k_d*radius)) ...
         #        - sqrt(mu.*eps_d)*ones(1,N).      *transpose(ric_besselj(nu,k_d*radius)).     *transpose(ric_besselj_derivative(nu,k*radius));
         num = ( (np.sqrt(mu_d*eps)*np.ones((1, N))) * np.transpose(ric_besselj(nu, k*radius))  *np.transpose(ric_besselj_derivative(nu, k_d*radius))
                -(np.sqrt(mu*eps_d)*np.ones((1, N))) * np.transpose(ric_besselj(nu, k_d*radius))*np.transpose(ric_besselj_derivative(nu, k*radius))   )
+
         #den =  + sqrt(mu.*eps_d)*ones(1,N).        *transpose(ric_besselj(nu,k_d*radius))       *transpose(ric_besselh_derivative(nu,2,k*radius))...
         #       - sqrt(mu_d.*eps)*ones(1,N).        *transpose(ric_besselh(nu,2,k*radius)).      *transpose(ric_besselj_derivative(nu,k_d*radius));
         den = ( (np.sqrt(mu*eps_d)*np.ones((1, N))) * np.transpose(ric_besselj(nu, k_d*radius))  * np.transpose(ric_besselh_derivative(nu, 2, k*radius))
                -(np.sqrt(mu_d*eps)*np.ones((1, N))) * np.transpose(ric_besselh(nu, 2, k*radius)) * np.transpose(ric_besselj_derivative(nu, k_d*radius)))
+
         #b_n = num./den.*a_n;
         b_n = num/den*a_n
         #num =  + sqrt(mu_d.*eps)*ones(1,N).        *transpose(ric_besselj(nu,k_d*radius)).     *transpose(ric_besselj_derivative(nu,k*radius))...
         #       - sqrt(mu.*eps_d)*ones(1,N).        *transpose(ric_besselj(nu,k*radius))  .     *transpose(ric_besselj_derivative(nu,k_d*radius));
         num = ( (np.sqrt(mu_d*eps)*np.ones((1, N))) * np.transpose(ric_besselj(nu, k_d*radius)) * np.transpose(ric_besselj_derivative(nu, k*radius))
                -(np.sqrt(mu*eps_d)*np.ones((1, N))) * np.transpose(ric_besselj(nu, k*radius))   * np.transpose(ric_besselj_derivative(nu, k_d*radius))  )
+
         #den = + sqrt(mu.*eps_d)*ones(1,N).         *transpose(ric_besselh(nu,2,k*radius)).      *transpose(ric_besselj_derivative(nu,k_d*radius))...
         #      - sqrt(mu_d.*eps)*ones(1,N).         *transpose(ric_besselj(nu,k_d*radius)).      *transpose(ric_besselh_derivative(nu,2,k*radius));
         den = ( (np.sqrt(mu*eps_d)*np.ones((1, N))) * np.transpose(ric_besselh(nu, 2, k*radius)) * np.transpose(ric_besselj_derivative(nu, k_d*radius))
                -(np.sqrt(mu_d*eps)*np.ones((1, N))) * np.transpose(ric_besselj(nu, k_d*radius))  * np.transpose(ric_besselh_derivative(nu, 2, k*radius))  )
+
         # c_n = num./den.*a_n;
         c_n = num/den*a_n
         
         #if p.Results.debug:
         #    np.disp(np.array(np.hstack(('b_n ', num2str(b_n[int(iNU)-1]), c_n, num2str(c_n[int(iNU)-1])))))
         #    return []
-        
+
         x = k*r
 
         ## Implement (11-239a) in [Balanis1989]
