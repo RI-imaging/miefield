@@ -26,21 +26,21 @@ from ._Functions import *
 __all__ = ["GetFieldSphere"]
 
 def GetFieldSphere(radius, nmed, nsphe, lD, size, res):
+
     sphere = DielectricMaterial(nsphe**2,0.0)
     background = DielectricMaterial(nmed**2,0.0)
     reference =  DielectricMaterial(1,0.0)
     lambref = reference.getElectromagneticWavelength(1.0)
     xmax = size / res / 2.0
     # the detector resolution is not dependent on the medium
-    
     lambref = 3    
     
     detector = np.linspace(-xmax, xmax, size, endpoint=True) * lambref
     sensor_location = np.zeros((3,size))
     sensor_location[0] = lD*lambref    # optical path length to detector
     sensor_location[1] = detector
-    sensor_location[2] = detector  ######################
-
+    sensor_location[2] = detector  #HHH 3D experience
+    #HHH                                               vvv why radius*lambref?
     return getDielectricSphereFieldUnderPlaneWave(radius*lambref, 
              sphere, background, sensor_location).flatten()
 
@@ -118,28 +118,25 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
     # kzlegendre(nu,1,cos(theta))/sin(theta). Here I am using a
     # recursive relation to compute temp2, which avoids the numerical
     # difficulty when theta == 0 or PI.
-    temp2 = np.zeros((len(nu), len(theta)))
-    temp2[0] = -1
-    print(np.shape(( -3 * np.ones((np.size(theta),1)) )))
-    print(np.shape(np.cos(theta)))
-    temp2[1] = ( -3 * np.ones((np.size(theta),1)) ) * np.cos(theta)
-    #################                        temp2(2) = -3*cos(theta); 
+    temp2 = np.zeros((len(theta),len(nu))) #HHH matlab original: temp2 = np.zeros((len(nu), len(theta))) ###### changed to akin to matlab
+    temp2[:,0] = -1                        #HHH all in first column
+    temp2[:,1] = (-3*np.cos(theta)).T      #HHH matlab original: temp2(2) = -3*cos(theta) ##### Transverse or it doens't work. You need to replace a column with a row, figure that.
     # if N = 10, then nu = [1,2,3,4,5,6,7,8,9,19]
     for n in np.arange(len(nu)-2)+1:
         # matlab: [2,3,4,5,6,7,8,9]
         # python: [1,2,3,4,5,6,7,8]
-        temp2[n+1] = (2*n+1)/n * np.cos(theta)*temp2[n] - (n+1)/n * temp2[n-1]
+        temp2[:,n+1] = (2*n+1)/n * np.cos(theta).T*temp2[:,n] - (n+1)/n * temp2[:,n-1]     #HHH matlab original: temp2(n+1) = (2*n+1)/n*cos(theta)*temp2(n) - (n+1)/n*temp2(n-1)   ####selecting whole columns, using transverses properly
         
     # temp1 denotes the expression
     # sin(theta)*kzlegendre_derivative(nu,1,cos(theta)).  Here I am
     # also using a recursive relation to compute temp1 from temp2,
     # which avoids numerical difficulty when theta == 0 or PI.
-    temp1 = np.zeros((len(nu), len(theta)))
-    temp1[0] = np.cos(theta)
+    temp1 = np.zeros((len(theta), len(nu)))  #HHH changed to keep matlab's structure
+    temp1[:,0] = np.cos(theta).T
     for n in np.arange(len(nu)-1)+1:
         # matlab: [2,3,4,5,6,7,8,9,10]  (index starts at 1)
         # python: [1,2,3,4,5,6,7,8,9]   (index starts at 0)  
-        temp1[n-1] = (n+1) * temp2[n-1]-n*np.cos(theta)*temp2[n]
+        temp1[:,n-1] = (n+1) * temp2[:,n-1]-n*np.cos(theta).T*temp2[:,n]
         
     #temp1 = np.dot(np.ones(nFreq, 1.), temp1)
     #temp2 = np.dot(np.ones(nFreq, 1.), temp2)
@@ -157,135 +154,148 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
     #    np.disp(np.array(np.hstack(('c_n ', num2str(x[0]), e_n, num2str(x[1])))))
     #    np.disp('------')
     
-
-if np.all(r<radius):
-
-        #num = j.*mu_d/sqrt(mu)*sqrt(eps_d);
-        num = 1j*mu_d/np.sqrt(mu)*np.sqrt(eps_d)
-        #den =  - sqrt(mu.  *eps_d)    *ones(1,N).       *transpose(ric_besselj(nu,k_d*radius)).    *transpose(ric_besselh_derivative(nu,2,k*radius))...
-        #       + sqrt(mu_d.*eps)      *ones(1,N).       *transpose(ric_besselh(nu,2,k*radius)).    *transpose(ric_besselj_derivative(nu,k_d*radius));
-        den = ( - (np.sqrt(mu   * eps_d)*np.ones((1,N))) * np.transpose(ric_besselj(nu,k_d*radius)) * np.transpose(ric_besselh_derivative(nu,2,k*radius))
-                + (np.sqrt(mu_d * eps  )*np.ones((1,N))) * np.transpose(ric_besselh(nu,2,k*radius)) * np.transpose(ric_besselj_derivative(nu,k_d*radius))    )
-        #d_n = num*ones(1,N)./den.*a_n;
-        d_n = num*np.ones((1, N))/den*a_n
+    alpha = np.zeros((len(theta),len(nu)))          #HHH alpha has to be an array the size of (theta,nu), so it can include every value of theta
+    
+    for elem in range (0,np.size(r)):         #HHH gotta evaluate element by element in r (which is a column array)
+        print("elem: ",elem, "is r: ",r[elem],"/",radius,"out of ", np.size(r))
+    
+        if r[elem] < radius:
+            #num = j.*mu_d/sqrt(mu)*sqrt(eps_d);
+            num = 1j*mu_d/np.sqrt(mu)*np.sqrt(eps_d)
+            #den =  - sqrt(mu.  *eps_d)    *ones(1,N).       *transpose(ric_besselj(nu,k_d*radius)).    *transpose(ric_besselh_derivative(nu,2,k*radius))...
+            #       + sqrt(mu_d.*eps)      *ones(1,N).       *transpose(ric_besselh(nu,2,k*radius)).    *transpose(ric_besselj_derivative(nu,k_d*radius));
+            den = ( - (np.sqrt(mu   * eps_d)*np.ones((1,N))) * np.transpose(ric_besselj(nu,k_d*radius)) * np.transpose(ric_besselh_derivative(nu,2,k*radius))
+                    + (np.sqrt(mu_d * eps  )*np.ones((1,N))) * np.transpose(ric_besselh(nu,2,k*radius)) * np.transpose(ric_besselj_derivative(nu,k_d*radius))    )
+            #d_n = num*ones(1,N)./den.*a_n;
+            d_n = num*np.ones((1, N))/den*a_n
         
-        #den =  + sqrt(mu.*eps_d)       *ones(1,N).      *transpose(ric_besselh(nu,2,k*radius)).    *transpose(ric_besselj_derivative(nu,k_d*radius))...
-        #       - sqrt(mu_d.*eps)       *ones(1,N).      *transpose(ric_besselj(nu,k_d*radius)).    *transpose(ric_besselh_derivative(nu,2,k*radius));
-        den = ( + (np.sqrt(mu   * eps_d)*np.ones((1,N))) * np.transpose(ric_besselh(nu,2,k*radius)) * np.transpose(ric_besselj_derivative(nu,k_d*radius))
-                - (np.sqrt(mu_d * eps  )*np.ones((1,N))) * np.transpose(ric_besselj(nu,k_d*radius)) * np.transpose(ric_besselh_derivative(nu,2,k*radius))     )
-        #e_n = num*ones(1,N)./den.*a_n;
-        e_n =  num*np.ones((1, N))/den*a_n
+            #den =  + sqrt(mu.*eps_d)       *ones(1,N).      *transpose(ric_besselh(nu,2,k*radius)).    *transpose(ric_besselj_derivative(nu,k_d*radius))...
+            #       - sqrt(mu_d.*eps)       *ones(1,N).      *transpose(ric_besselj(nu,k_d*radius)).    *transpose(ric_besselh_derivative(nu,2,k*radius));
+            den = ( + (np.sqrt(mu   * eps_d)*np.ones((1,N))) * np.transpose(ric_besselh(nu,2,k*radius)) * np.transpose(ric_besselj_derivative(nu,k_d*radius))
+                    - (np.sqrt(mu_d * eps  )*np.ones((1,N))) * np.transpose(ric_besselj(nu,k_d*radius)) * np.transpose(ric_besselh_derivative(nu,2,k*radius))     )
+            #e_n = num*ones(1,N)./den.*a_n;
+            e_n =  num*np.ones((1, N))/den*a_n
         
-        x = k_d * r
+            x = k_d * r[elem]               #HHH x of the current r[elem]
+            x=x[0]                      #HHH x should be integer... or problems
 
-        ## Implement (11-239a) in [Balanis1989] 
-        #alpha = (transpose(ric_besselj_derivative(nu,x,2))+transpose(ric_besselj(nu,x)))...
-        #        .*transpose(kzlegendre(nu,1,cos(theta))*ones(1,nFreq));        
-        alpha = ( (np.transpose(ric_besselj_derivative(nu, x, 2))+np.transpose(ric_besselj(nu, x)))
-                  *np.transpose(kzlegendre(nu, 1, np.cos(theta)))              )
-        # E_r = -j*cos(phi)*sum(d_n.*alpha, 2);
-        E_r = -1j*np.cos(phi) * np.sum(d_n*alpha, 1)
-        #H_r  = -j*sin(phi)*sum(e_n.*alpha, 2)./eta_d;
-        H_r = -1j*np.sin(phi) * np.sum(e_n*alpha, 1)/eta_d
+            ## Implement (11-239a) in [Balanis1989] 
+            #alpha = (transpose(ric_besselj_derivative(nu,x,2))+transpose(ric_besselj(nu,x)))...
+            #        .*transpose(kzlegendre(nu,1,cos(theta))*ones(1,nFreq));   
 
-        ## Implement (11-239b) in [Balanis1989]
-        #alpha = transpose(ric_besselj_derivative(nu,x)).*temp1;
-        alpha = np.transpose(ric_besselj_derivative(nu, x))*temp1
-        #beta = transpose(ric_besselj(nu,x)).*temp2;
-        beta = np.transpose(ric_besselj(nu, x))*temp2
-        # summation = j*d_n.*alpha - e_n.*beta;
-        summation = 1j*d_n*alpha-e_n*beta
-        # E_theta   = cos(phi)./x.*sum(summation,2);
-        E_theta = np.cos(phi)/x*np.sum(summation, 1)
-        # summation = j*e_n.*alpha - d_n.*beta;
-        summation = 1j*e_n*alpha - d_n*beta
-        # H_theta = sin(phi)./x.*sum(summation,2)./eta_d;
-        H_theta = np.sin(phi)/x*np.sum(summation, 1)/eta_d
+            for elem2 in range (0,np.size(theta)):          #HHH every single element of theta will be checked and added to alpha[elem2]     
+                alpha[elem2] = ( (np.transpose(ric_besselj_derivative(nu, x, 2))+np.transpose(ric_besselj(nu, x)))
+                          *np.transpose(kzlegendre(nu, 1, np.cos(theta[elem2])))              )    #HHH obviously, specific theta[elem2] is used for alpha[elem2]   
+                                                    
+            # E_r = -j*cos(phi)*sum(d_n.*alpha, 2);
+            E_r = -1j*np.cos(phi) * np.sum(d_n*alpha, 1)
+            #H_r  = -j*sin(phi)*sum(e_n.*alpha, 2)./eta_d;
+            H_r = -1j*np.sin(phi) * np.sum(e_n*alpha, 1)/eta_d
 
-        ## Implement (11-239c) in [Balanis1989]
-        # alpha = transpose(ric_besselj_derivative(nu,x)).*temp2;
-        alpha = np.transpose(ric_besselj_derivative(nu, x))*temp2
-        # beta = transpose(ric_besselj(nu,x)).*temp1;
-        beta = np.transpose(ric_besselj(nu, x))*temp1
-        # summation = j*d_n.*alpha - e_n.*beta;
-        summation = 1j*d_n*alpha - e_n*beta
-        # E_phi = sin(phi)./x.*sum(summation,2);
-        E_phi = np.sin(phi)/x*np.sum(summation, 1)
-        # summation = j*e_n.*alpha - d_n.*beta;
-        summation = 1j*e_n*alpha - d_n*beta
-        # H_phi     =-cos(phi)./x.*sum(summation,2)./eta_d;
-        H_phi = -np.cos(phi)/x*np.sum(summation, 1)/eta_d
+            ## Implement (11-239b) in [Balanis1989]
+            #alpha = transpose(ric_besselj_derivative(nu,x)).*temp1;
+            alpha = np.transpose(ric_besselj_derivative(nu, x))*temp1
+            #beta = transpose(ric_besselj(nu,x)).*temp2;
+            beta = np.transpose(ric_besselj(nu, x))*temp2
+            # summation = j*d_n.*alpha - e_n.*beta;
+            summation = 1j*d_n*alpha-e_n*beta
+            # E_theta   = cos(phi)./x.*sum(summation,2);
+            E_theta = np.cos(phi)/x*np.sum(summation, 1)
+            # summation = j*e_n.*alpha - d_n.*beta;
+            summation = 1j*e_n*alpha - d_n*beta
+            # H_theta = sin(phi)./x.*sum(summation,2)./eta_d;
+            H_theta = np.sin(phi)/x*np.sum(summation, 1)/eta_d
 
-    else:
-
-        # num =  + sqrt(mu_d.*eps)*ones(1,N).      *transpose(ric_besselj(nu,k*radius))  .     *transpose(ric_besselj_derivative(nu,k_d*radius)) ...
-        #        - sqrt(mu.*eps_d)*ones(1,N).      *transpose(ric_besselj(nu,k_d*radius)).     *transpose(ric_besselj_derivative(nu,k*radius));
-        num = ( (np.sqrt(mu_d*eps)*np.ones((1, N))) * np.transpose(ric_besselj(nu, k*radius))  *np.transpose(ric_besselj_derivative(nu, k_d*radius))
-               -(np.sqrt(mu*eps_d)*np.ones((1, N))) * np.transpose(ric_besselj(nu, k_d*radius))*np.transpose(ric_besselj_derivative(nu, k*radius))   )
-
-        #den =  + sqrt(mu.*eps_d)*ones(1,N).        *transpose(ric_besselj(nu,k_d*radius))       *transpose(ric_besselh_derivative(nu,2,k*radius))...
-        #       - sqrt(mu_d.*eps)*ones(1,N).        *transpose(ric_besselh(nu,2,k*radius)).      *transpose(ric_besselj_derivative(nu,k_d*radius));
-        den = ( (np.sqrt(mu*eps_d)*np.ones((1, N))) * np.transpose(ric_besselj(nu, k_d*radius))  * np.transpose(ric_besselh_derivative(nu, 2, k*radius))
-               -(np.sqrt(mu_d*eps)*np.ones((1, N))) * np.transpose(ric_besselh(nu, 2, k*radius)) * np.transpose(ric_besselj_derivative(nu, k_d*radius)))
-
-        #b_n = num./den.*a_n;
-        b_n = num/den*a_n
-        #num =  + sqrt(mu_d.*eps)*ones(1,N).        *transpose(ric_besselj(nu,k_d*radius)).     *transpose(ric_besselj_derivative(nu,k*radius))...
-        #       - sqrt(mu.*eps_d)*ones(1,N).        *transpose(ric_besselj(nu,k*radius))  .     *transpose(ric_besselj_derivative(nu,k_d*radius));
-        num = ( (np.sqrt(mu_d*eps)*np.ones((1, N))) * np.transpose(ric_besselj(nu, k_d*radius)) * np.transpose(ric_besselj_derivative(nu, k*radius))
-               -(np.sqrt(mu*eps_d)*np.ones((1, N))) * np.transpose(ric_besselj(nu, k*radius))   * np.transpose(ric_besselj_derivative(nu, k_d*radius))  )
-
-        #den = + sqrt(mu.*eps_d)*ones(1,N).         *transpose(ric_besselh(nu,2,k*radius)).      *transpose(ric_besselj_derivative(nu,k_d*radius))...
-        #      - sqrt(mu_d.*eps)*ones(1,N).         *transpose(ric_besselj(nu,k_d*radius)).      *transpose(ric_besselh_derivative(nu,2,k*radius));
-        den = ( (np.sqrt(mu*eps_d)*np.ones((1, N))) * np.transpose(ric_besselh(nu, 2, k*radius)) * np.transpose(ric_besselj_derivative(nu, k_d*radius))
-               -(np.sqrt(mu_d*eps)*np.ones((1, N))) * np.transpose(ric_besselj(nu, k_d*radius))  * np.transpose(ric_besselh_derivative(nu, 2, k*radius))  )
-
-        # c_n = num./den.*a_n;
-        c_n = num/den*a_n
+            ## Implement (11-239c) in [Balanis1989]
+            # alpha = transpose(ric_besselj_derivative(nu,x)).*temp2;
+            alpha = np.transpose(ric_besselj_derivative(nu, x))*temp2
+            # beta = transpose(ric_besselj(nu,x)).*temp1;
+            beta = np.transpose(ric_besselj(nu, x))*temp1
+            # summation = j*d_n.*alpha - e_n.*beta;
+            summation = 1j*d_n*alpha - e_n*beta
+            # E_phi = sin(phi)./x.*sum(summation,2);
+            E_phi = np.sin(phi)/x*np.sum(summation, 1)
+            # summation = j*e_n.*alpha - d_n.*beta;
+            summation = 1j*e_n*alpha - d_n*beta
+            # H_phi     =-cos(phi)./x.*sum(summation,2)./eta_d;
+            H_phi = -np.cos(phi)/x*np.sum(summation, 1)/eta_d
         
-        #if p.Results.debug:
-        #    np.disp(np.array(np.hstack(('b_n ', num2str(b_n[int(iNU)-1]), c_n, num2str(c_n[int(iNU)-1])))))
-        #    return []
+        else:
 
-        x = k*r
+            # num =  + sqrt(mu_d.*eps)*ones(1,N).      *transpose(ric_besselj(nu,k*radius))  .     *transpose(ric_besselj_derivative(nu,k_d*radius)) ...
+            #        - sqrt(mu.*eps_d)*ones(1,N).      *transpose(ric_besselj(nu,k_d*radius)).     *transpose(ric_besselj_derivative(nu,k*radius));
+            num = ( (np.sqrt(mu_d*eps)*np.ones((1, N))) * np.transpose(ric_besselj(nu, k*radius))  *np.transpose(ric_besselj_derivative(nu, k_d*radius))
+                   -(np.sqrt(mu*eps_d)*np.ones((1, N))) * np.transpose(ric_besselj(nu, k_d*radius))*np.transpose(ric_besselj_derivative(nu, k*radius))   )
 
-        ## Implement (11-239a) in [Balanis1989]
-        #alpha = (transpose(ric_besselh_derivative(nu,2,x,2))      +transpose(ric_besselh(nu,2,x)))...
-        #    .*transpose(kzlegendre(nu,1,cos(theta))*ones(1,nFreq));
-        alpha = ( (np.transpose(ric_besselh_derivative(nu, 2, x, 2)) + np.transpose(ric_besselh(nu, 2, x))) 
-                 *(np.transpose(kzlegendre(nu, 1, np.cos(theta))))                                           )
-        #E_r = -j*cos(phi)*sum(b_n.*alpha, 2);
-        E_r = -1j*np.cos(phi) * np.sum(b_n*alpha, 1)
-        #H_r = -j*sin(phi)*sum(c_n.*alpha, 2)./eta;
-        H_r = -1j*np.sin(phi) * np.sum(c_n*alpha, 1)/eta
+            #den =  + sqrt(mu.*eps_d)*ones(1,N).        *transpose(ric_besselj(nu,k_d*radius))       *transpose(ric_besselh_derivative(nu,2,k*radius))...
+            #       - sqrt(mu_d.*eps)*ones(1,N).        *transpose(ric_besselh(nu,2,k*radius)).      *transpose(ric_besselj_derivative(nu,k_d*radius));
+            den = ( (np.sqrt(mu*eps_d)*np.ones((1, N))) * np.transpose(ric_besselj(nu, k_d*radius))  * np.transpose(ric_besselh_derivative(nu, 2, k*radius))
+                   -(np.sqrt(mu_d*eps)*np.ones((1, N))) * np.transpose(ric_besselh(nu, 2, k*radius)) * np.transpose(ric_besselj_derivative(nu, k_d*radius)))
+               
+            #b_n = num./den.*a_n;
+            b_n = num/den*a_n
+            
+            
+            #num =  + sqrt(mu_d.*eps)*ones(1,N).        *transpose(ric_besselj(nu,k_d*radius)).     *transpose(ric_besselj_derivative(nu,k*radius))...
+            #       - sqrt(mu.*eps_d)*ones(1,N).        *transpose(ric_besselj(nu,k*radius))  .     *transpose(ric_besselj_derivative(nu,k_d*radius));
+            num = ( (np.sqrt(mu_d*eps)*np.ones((1, N))) * np.transpose(ric_besselj(nu, k_d*radius)) * np.transpose(ric_besselj_derivative(nu, k*radius))
+                   -(np.sqrt(mu*eps_d)*np.ones((1, N))) * np.transpose(ric_besselj(nu, k*radius))   * np.transpose(ric_besselj_derivative(nu, k_d*radius))  )
+
+            #den = + sqrt(mu.*eps_d)*ones(1,N).         *transpose(ric_besselh(nu,2,k*radius)).      *transpose(ric_besselj_derivative(nu,k_d*radius))...
+            #      - sqrt(mu_d.*eps)*ones(1,N).         *transpose(ric_besselj(nu,k_d*radius)).      *transpose(ric_besselh_derivative(nu,2,k*radius));
+            den = ( (np.sqrt(mu*eps_d)*np.ones((1, N))) * np.transpose(ric_besselh(nu, 2, k*radius)) * np.transpose(ric_besselj_derivative(nu, k_d*radius))
+                   -(np.sqrt(mu_d*eps)*np.ones((1, N))) * np.transpose(ric_besselj(nu, k_d*radius))  * np.transpose(ric_besselh_derivative(nu, 2, k*radius))  )
+
+            # c_n = num./den.*a_n;
+            c_n = num/den*a_n
         
-        ## Implement (11-239b) in [Balanis1989]
-        #alpha = transpose(ric_besselh_derivative(nu,2,x)).*temp1;
-        alpha = np.transpose(ric_besselh_derivative(nu, 2, x))*temp1
-        #beta = transpose(ric_besselh(nu,2,x)).*temp2;
-        beta = np.transpose(ric_besselh(nu, 2, x))*temp2
-        #summation = j*b_n.*alpha - c_n.*beta;
-        summation = 1j*b_n*alpha - c_n*beta
-        #E_theta = cos(phi)./x.*sum(summation,2);
-        E_theta = np.cos(phi)/x*np.sum(summation, 1)
-        #summation = j*c_n.*alpha - b_n.*beta;
-        summation = 1j*c_n*alpha - b_n*beta
-        #H_theta = sin(phi)./x.*sum(summation,2)./eta;
-        H_theta = np.sin(phi)/x*np.sum(summation, 1)/eta
+            #if p.Results.debug:
+            #    np.disp(np.array(np.hstack(('b_n ', num2str(b_n[int(iNU)-1]), c_n, num2str(c_n[int(iNU)-1])))))
+            #    return []
+
+            x = k*r[elem]               #HHH x of the current r[elem]
+            x=x[0]                      #HHH x should be integer... or problems
+            
+            ## Implement (11-239a) in [Balanis1989]
+            #alpha = (transpose(ric_besselh_derivative(nu,2,x,2))      +transpose(ric_besselh(nu,2,x)))...
+            #    .*transpose(kzlegendre(nu,1,cos(theta))*ones(1,nFreq));
+
+            
+            for elem2 in range (0,np.size(theta)):          #HHH every single element of theta will be checked and added to alpha[elem2]
+                alpha[elem2] = (  (np.transpose(ric_besselh_derivative(nu, 2, x, 2)) + np.transpose(ric_besselh(nu, 2, x))) * 
+                                   np.transpose(kzlegendre(nu, 1, np.cos(theta[elem2])))         )       #HHH obviously, specific theta[elem2] is used for alpha[elem2]             
+            #E_r = -j*cos(phi)*sum(b_n.*alpha, 2);
+            E_r = -1j*np.cos(phi) * np.sum(b_n*alpha, 1)
+            #H_r = -j*sin(phi)*sum(c_n.*alpha, 2)./eta;
+            H_r = -1j*np.sin(phi) * np.sum(c_n*alpha, 1)/eta
         
-        ## Implement (11-239c) in [Balanis1989]
-        #alpha     = transpose(ric_besselh_derivative(nu,2,x)).*temp2;
-        alpha = np.transpose(ric_besselh_derivative(nu, 2, x))*temp2
-        #beta = transpose(ric_besselh(nu,2,x)).*temp1;
-        beta = np.transpose(ric_besselh(nu, 2, x))*temp1
-        #summation = j*b_n.*alpha - c_n.*beta;
-        summation = 1j*b_n*alpha - c_n*beta
-        #E_phi = sin(phi)./x.*sum(summation,2);
-        E_phi = np.sin(phi)/x*np.sum(summation, 1)
-        #summation = j*c_n.*alpha - b_n.*beta;
-        summation = 1j*c_n*alpha - b_n*beta
-        #H_phi =-cos(phi)./x.*sum(summation,2)./eta;
-        H_phi = -np.cos(phi)/x*np.sum(summation, 1)/eta
+            ## Implement (11-239b) in [Balanis1989]
+            #alpha = transpose(ric_besselh_derivative(nu,2,x)).*temp1;
+            alpha = np.transpose(ric_besselh_derivative(nu, 2, x))*temp1
+            #beta = transpose(ric_besselh(nu,2,x)).*temp2;
+            beta = np.transpose(ric_besselh(nu, 2, x))*temp2
+            #summation = j*b_n.*alpha - c_n.*beta;
+            summation = 1j*b_n*alpha - c_n*beta
+            #E_theta = cos(phi)./x.*sum(summation,2);
+            E_theta = np.cos(phi)/x*np.sum(summation, 1)
+            #summation = j*c_n.*alpha - b_n.*beta;
+            summation = 1j*c_n*alpha - b_n*beta
+            #H_theta = sin(phi)./x.*sum(summation,2)./eta;
+            H_theta = np.sin(phi)/x*np.sum(summation, 1)/eta
+            
+            ## Implement (11-239c) in [Balanis1989]
+            #alpha     = transpose(ric_besselh_derivative(nu,2,x)).*temp2;
+            alpha = np.transpose(ric_besselh_derivative(nu, 2, x))*temp2
+            #beta = transpose(ric_besselh(nu,2,x)).*temp1;
+            beta = np.transpose(ric_besselh(nu, 2, x))*temp1
+            #summation = j*b_n.*alpha - c_n.*beta;
+            summation = 1j*b_n*alpha - c_n*beta
+            #E_phi = sin(phi)./x.*sum(summation,2);
+            E_phi = np.sin(phi)/x*np.sum(summation, 1)
+            #summation = j*c_n.*alpha - b_n.*beta;
+            summation = 1j*c_n*alpha - b_n*beta
+            #H_phi =-cos(phi)./x.*sum(summation,2)./eta;
+            H_phi = -np.cos(phi)/x*np.sum(summation, 1)/eta
         
     
     return [E_r, E_theta, E_phi, H_r, H_theta, H_phi]

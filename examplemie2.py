@@ -6,7 +6,7 @@ radius = 35 # radius of the cylinder in wavelengths
 nmed = 1.333 # refractive index of surrounding medium
 nsphe = 1.350 # refractive index of the cylinder
 lD = 12 # distance from center of cylinder to planar detector
-size = 100 # pixel number of the planar detector
+size = 50 # pixel number of the planar detector
 res = 0.5 # pixel size of the detector
 efield = miefield.GetFieldSphere(radius, nmed, nsphe, lD, size, res)
 
