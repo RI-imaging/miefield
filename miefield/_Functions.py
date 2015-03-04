@@ -412,18 +412,22 @@ def kzlegendre(n,m,x):
 def legendre(n,x):
     """ This function behaves as the the matlab legendre function.
     
+        x is treated always as a row vector.
+    
         The statement legendre(2,0:0.1:0.2) returns the matrix
                 x = 0   x = 0.1  x = 0.2
         m = 0  -0.5000  -0.4850	 -0.4400
         m = 1   0       -0.2985  -0.5879
         m = 2   3.0000   2.9700  2.8800
     """
-    x = np.atleast_1d(x)
-    result = np.zeros((len(x),n+1))
-    for i in range(len(x)):
+    x = np.atleast_1d(np.array(x)).flatten()
+    result = np.zeros((x.shape[0], n+1))
+    for i in range(x.shape[0]):
         # Gives us row vector
-        a = special.lpmn(n,n,x[0,i])[0].transpose()[-1]     #HHH ask for one element inside x (horizontal array)
+        a = special.lpmn(n,n,x[i])[0].transpose()[-1]     #HHH ask for one element inside x (horizontal array)
         result[i] = a
+    #import IPython
+    #IPython.embed()
     return result.transpose()
        
     
