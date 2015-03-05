@@ -33,17 +33,13 @@ def GetFieldSphere(radius, nmed, nsphe, lD, size, res):
     lambref = reference.getElectromagneticWavelength(1.0)
     xmax = size / res / 2.0
     # the detector resolution is not dependent on the medium
-    lambref = 3    
-    
     detector = np.linspace(-xmax, xmax, size, endpoint=True) * lambref
     sensor_location = np.zeros((3,size))
     sensor_location[0] = lD*lambref    # optical path length to detector
     sensor_location[1] = detector
     sensor_location[2] = detector  #HHH 3D experience
-    #HHH                                               vvv why radius*lambref?
     return getDielectricSphereFieldUnderPlaneWave(radius*lambref, 
-             sphere, background, sensor_location).flatten()
-
+             sphere, background, sensor_location)
     
 
 
@@ -100,7 +96,9 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
     eps_d = sphere.getComplexPermittivity(frequency)
     
 
-    N = getN_max(radius, sphere, background, frequency)
+        
+    
+    N = getN_max(radius, sphere, background, frequency)    
     #N = getN_max((p.Results.radius), cellarray(np.hstack((p.Results.sphere))), (p.Results.background), (p.Results.frequency))
     #N = matcompat.max(N)
 
@@ -131,7 +129,7 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
     # sin(theta)*kzlegendre_derivative(nu,1,cos(theta)).  Here I am
     # also using a recursive relation to compute temp1 from temp2,
     # which avoids numerical difficulty when theta == 0 or PI.
-    temp1 = np.zeros((len(theta), len(nu)))  #HHH changed to keep matlab's structure
+    temp1 = np.zeros((len(theta), len(nu)))  #HHH changed to keep matlab's structure.
     temp1[:,0] = np.cos(theta).T
     for n in np.arange(len(nu)-1)+1:
         # matlab: [2,3,4,5,6,7,8,9,10]  (index starts at 1)
@@ -154,10 +152,20 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
     #    np.disp(np.array(np.hstack(('c_n ', num2str(x[0]), e_n, num2str(x[1])))))
     #    np.disp('------')
     
-    alpha = np.zeros((len(theta),len(nu)))          #HHH alpha has to be an array the size of (theta,nu), so it can include every value of theta
+    #alpha = np.zeros((len(theta),len(nu)))          #HHH In matlab, alpha is a row, with nu number values. since here r,theta,phi is a column, alpha has to be an array the size of (theta,nu), so it can include all the nus (in row) per value of r (in colum)
+    #print("alpha shape",np.shape(alpha))
+    
+    
+    #HHH initializing final result, and adding 0j so it's imaginary from the start
+    E_r        = np.zeros(np.shape(theta)) + 0j
+    E_theta    = np.zeros(np.shape(theta)) + 0j
+    E_phi      = np.zeros(np.shape(theta)) + 0j
+    H_r        = np.zeros(np.shape(theta)) + 0j
+    H_theta    = np.zeros(np.shape(theta)) + 0j
+    H_phi      = np.zeros(np.shape(theta)) + 0j   
     
     for elem in range (0,np.size(r)):         #HHH gotta evaluate element by element in r (which is a column array)
-        print("elem: ",elem, "is r: ",r[elem],"/",radius,"out of ", np.size(r))
+        #print("elem: ",elem, "is r: ",r[elem],"/",radius,"out of ", np.size(r))
     
         if r[elem] < radius:
             #num = j.*mu_d/sqrt(mu)*sqrt(eps_d);
@@ -183,42 +191,41 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
             #alpha = (transpose(ric_besselj_derivative(nu,x,2))+transpose(ric_besselj(nu,x)))...
             #        .*transpose(kzlegendre(nu,1,cos(theta))*ones(1,nFreq));   
 
-            for elem2 in range (0,np.size(theta)):          #HHH every single element of theta will be checked and added to alpha[elem2]     
-                alpha[elem2] = ( (np.transpose(ric_besselj_derivative(nu, x, 2))+np.transpose(ric_besselj(nu, x)))
-                          *np.transpose(kzlegendre(nu, 1, np.cos(theta[elem2])))              )    #HHH obviously, specific theta[elem2] is used for alpha[elem2]   
-                                                    
+            alpha = (  (np.transpose(ric_besselh_derivative(nu, 2, x, 2)) + np.transpose(ric_besselh(nu, 2, x))) * 
+                              np.transpose(kzlegendre(nu, 1, np.cos(theta[elem])))         )       #HHH obviously, specific theta[elem] is used for alpha            
+                                       
             # E_r = -j*cos(phi)*sum(d_n.*alpha, 2);
-            E_r = -1j*np.cos(phi) * np.sum(d_n*alpha, 1)
+            E_r[elem] = -1j*np.cos(phi[elem]) * np.sum(d_n*alpha, 1)                    #HHH use specific row of phi to get a single number
             #H_r  = -j*sin(phi)*sum(e_n.*alpha, 2)./eta_d;
-            H_r = -1j*np.sin(phi) * np.sum(e_n*alpha, 1)/eta_d
+            H_r[elem] = -1j*np.sin(phi[elem]) * np.sum(e_n*alpha, 1)/eta_d              #HHH use specific row of phi to get a single number
 
             ## Implement (11-239b) in [Balanis1989]
             #alpha = transpose(ric_besselj_derivative(nu,x)).*temp1;
-            alpha = np.transpose(ric_besselj_derivative(nu, x))*temp1
+            alpha = np.transpose(ric_besselj_derivative(nu, x))*temp1[elem]
             #beta = transpose(ric_besselj(nu,x)).*temp2;
-            beta = np.transpose(ric_besselj(nu, x))*temp2
+            beta = np.transpose(ric_besselj(nu, x))*temp2[elem]
             # summation = j*d_n.*alpha - e_n.*beta;
             summation = 1j*d_n*alpha-e_n*beta
             # E_theta   = cos(phi)./x.*sum(summation,2);
-            E_theta = np.cos(phi)/x*np.sum(summation, 1)
+            E_theta[elem] = np.cos(phi[elem])/x*np.sum(summation, 1)
             # summation = j*e_n.*alpha - d_n.*beta;
             summation = 1j*e_n*alpha - d_n*beta
             # H_theta = sin(phi)./x.*sum(summation,2)./eta_d;
-            H_theta = np.sin(phi)/x*np.sum(summation, 1)/eta_d
+            H_theta[elem] = np.sin(phi[elem])/x*np.sum(summation, 1)/eta_d
 
             ## Implement (11-239c) in [Balanis1989]
             # alpha = transpose(ric_besselj_derivative(nu,x)).*temp2;
-            alpha = np.transpose(ric_besselj_derivative(nu, x))*temp2
+            alpha = np.transpose(ric_besselj_derivative(nu, x))*temp2[elem]
             # beta = transpose(ric_besselj(nu,x)).*temp1;
-            beta = np.transpose(ric_besselj(nu, x))*temp1
+            beta = np.transpose(ric_besselj(nu, x))*temp1[elem]
             # summation = j*d_n.*alpha - e_n.*beta;
             summation = 1j*d_n*alpha - e_n*beta
             # E_phi = sin(phi)./x.*sum(summation,2);
-            E_phi = np.sin(phi)/x*np.sum(summation, 1)
+            E_phi[elem] = np.sin(phi[elem])/x*np.sum(summation, 1)
             # summation = j*e_n.*alpha - d_n.*beta;
             summation = 1j*e_n*alpha - d_n*beta
             # H_phi     =-cos(phi)./x.*sum(summation,2)./eta_d;
-            H_phi = -np.cos(phi)/x*np.sum(summation, 1)/eta_d
+            H_phi[elem] = -np.cos(phi[elem])/x*np.sum(summation, 1)/eta_d
         
         else:
 
@@ -260,42 +267,41 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
             #alpha = (transpose(ric_besselh_derivative(nu,2,x,2))      +transpose(ric_besselh(nu,2,x)))...
             #    .*transpose(kzlegendre(nu,1,cos(theta))*ones(1,nFreq));
 
+            alpha = (  (np.transpose(ric_besselh_derivative(nu, 2, x, 2)) + np.transpose(ric_besselh(nu, 2, x))) * 
+                              np.transpose(kzlegendre(nu, 1, np.cos(theta[elem])))         )       #HHH obviously, specific theta[elem] is used for alpha[elem]             
             
-            for elem2 in range (0,np.size(theta)):          #HHH every single element of theta will be checked and added to alpha[elem2]
-                alpha[elem2] = (  (np.transpose(ric_besselh_derivative(nu, 2, x, 2)) + np.transpose(ric_besselh(nu, 2, x))) * 
-                                   np.transpose(kzlegendre(nu, 1, np.cos(theta[elem2])))         )       #HHH obviously, specific theta[elem2] is used for alpha[elem2]             
             #E_r = -j*cos(phi)*sum(b_n.*alpha, 2);
-            E_r = -1j*np.cos(phi) * np.sum(b_n*alpha, 1)
+            E_r[elem] = -1j*np.cos(phi[elem]) * np.sum(b_n*alpha, 1)                    #HHH use specific row of phi to get a single number
             #H_r = -j*sin(phi)*sum(c_n.*alpha, 2)./eta;
-            H_r = -1j*np.sin(phi) * np.sum(c_n*alpha, 1)/eta
+            H_r[elem] = -1j*np.sin(phi[elem]) * np.sum(c_n*alpha, 1)/eta                #HHH use specific row of phi to get a single number
         
             ## Implement (11-239b) in [Balanis1989]
             #alpha = transpose(ric_besselh_derivative(nu,2,x)).*temp1;
-            alpha = np.transpose(ric_besselh_derivative(nu, 2, x))*temp1
+            alpha = np.transpose(ric_besselh_derivative(nu, 2, x))*temp1[elem]
             #beta = transpose(ric_besselh(nu,2,x)).*temp2;
-            beta = np.transpose(ric_besselh(nu, 2, x))*temp2
+            beta = np.transpose(ric_besselh(nu, 2, x))*temp2[elem]
             #summation = j*b_n.*alpha - c_n.*beta;
             summation = 1j*b_n*alpha - c_n*beta
             #E_theta = cos(phi)./x.*sum(summation,2);
-            E_theta = np.cos(phi)/x*np.sum(summation, 1)
+            E_theta[elem] = np.cos(phi[elem])/x*np.sum(summation, 1)
             #summation = j*c_n.*alpha - b_n.*beta;
             summation = 1j*c_n*alpha - b_n*beta
             #H_theta = sin(phi)./x.*sum(summation,2)./eta;
-            H_theta = np.sin(phi)/x*np.sum(summation, 1)/eta
+            H_theta[elem] = np.sin(phi[elem])/x*np.sum(summation, 1)/eta
             
             ## Implement (11-239c) in [Balanis1989]
             #alpha     = transpose(ric_besselh_derivative(nu,2,x)).*temp2;
-            alpha = np.transpose(ric_besselh_derivative(nu, 2, x))*temp2
+            alpha = np.transpose(ric_besselh_derivative(nu, 2, x))*temp2[elem]
             #beta = transpose(ric_besselh(nu,2,x)).*temp1;
-            beta = np.transpose(ric_besselh(nu, 2, x))*temp1
+            beta = np.transpose(ric_besselh(nu, 2, x))*temp1[elem]
             #summation = j*b_n.*alpha - c_n.*beta;
             summation = 1j*b_n*alpha - c_n*beta
             #E_phi = sin(phi)./x.*sum(summation,2);
-            E_phi = np.sin(phi)/x*np.sum(summation, 1)
+            E_phi[elem] = np.sin(phi[elem])/x*np.sum(summation, 1)
             #summation = j*c_n.*alpha - b_n.*beta;
             summation = 1j*c_n*alpha - b_n*beta
             #H_phi =-cos(phi)./x.*sum(summation,2)./eta;
-            H_phi = -np.cos(phi)/x*np.sum(summation, 1)/eta
+            H_phi[elem] = -np.cos(phi[elem])/x*np.sum(summation, 1)/eta
         
     
     return [E_r, E_theta, E_phi, H_r, H_theta, H_phi]

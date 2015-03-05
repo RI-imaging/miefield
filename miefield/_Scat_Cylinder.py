@@ -85,6 +85,7 @@ def GetFieldCylinder(radius, nmed, ncyl, lD, size, res):
     sensor_location = np.zeros((2,size))
     sensor_location[0] = lD*lambref    # optical path length to detector
     sensor_location[1] = detector
+    
     return getDielectricCylinderFieldUnderPlaneWave(radius*lambref, 
              cylinder, background, sensor_location).flatten()
 

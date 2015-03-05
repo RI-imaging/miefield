@@ -420,11 +420,11 @@ def legendre(n,x):
         m = 1   0       -0.2985  -0.5879
         m = 2   3.0000   2.9700  2.8800
     """
-    x = np.atleast_1d(np.array(x)).flatten()
+    x = np.atleast_1d(np.array(x)).flatten()                     #HHH flattened
     result = np.zeros((x.shape[0], n+1))
     for i in range(x.shape[0]):
         # Gives us row vector
-        a = special.lpmn(n,n,x[i])[0].transpose()[-1]     #HHH ask for one element inside x (horizontal array)
+        a = special.lpmn(n,n,x[i])[0].transpose()[-1]
         result[i] = a
     #import IPython
     #IPython.embed()
