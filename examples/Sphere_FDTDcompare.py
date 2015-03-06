@@ -21,7 +21,7 @@ zf = zipfile.ZipFile("Sphere_FDTD.zip")
 
 radius = 5.0 # radius of the cylinder in wavelengths
 nmed = 1.333 # refractive index of surrounding medium
-ncyl = 1.34 # refractive index of the cylinder
+nsphe = 1.34 # refractive index of the cylinder
 lD = 6.0 # distance from center of cylinder to planar detector
 res = 13.0 # pixels per vacuum wavelength at the detector line
 
@@ -32,11 +32,14 @@ fdtd = fdtd_real + 1j*fdtd_imag
 
 size = fdtd.shape[0] # pixel number of the planar detector
 
-## TODO:
+# TODO:
 # Mie computation
-#mie = miefield.GetFieldSphere(radius, nmed, ncyl, lD, size, res)
-#mie_bg = miefield.GetFieldSphere(radius, nmed, nmed, lD, size, res)
-#mie /= mie_bg
+mie = miefield.GetFieldSphere(radius, nmed, nsphe, lD, size, res)
+mie_bg = miefield.GetFieldSphere(radius, nmed, nmed, lD, size, res)      #HHH not working
+mieE=mie[0]
+mie_bgE=mie_bg[0]
+
+#mieE /= mie_bg
 
 fig, axes = plt.subplots(2,3)
 
@@ -53,9 +56,13 @@ axes[2].imshow(fdtd_real)
 axes[2].set_title("FDTD real")
 
 ## Mie plots
+axes[3].plot(np.arange(size), np.angle(mieE) )
 axes[3].set_title("Mie phase")
-axes[4].set_title("Mie imag")
-axes[5].set_title("Mie real")
 
+axes[4].plot(np.arange(size), mieE.imag )
+axes[4].set_title("Mie imag")
+
+axes[5].plot(np.arange(size), mieE.real )
+axes[5].set_title("Mie real")
 
 plt.show()
