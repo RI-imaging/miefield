@@ -10,7 +10,9 @@ size = 376 # pixel number of the planar detector
 res = 13.0 # pixel size of the detector
 finalfield = miefield.GetFieldSphere(radius, nmed, nsphe, lD, size, res)
 
-print("final shape",np.shape(efield))
+import IPython
+IPython.embed()
+print("final shape",np.shape(finalfield))
 plt.plot(np.arange(size), finalfield[0].real.flatten(), label="real electric field")
 plt.plot(np.arange(size), finalfield[0].imag.flatten(), label="imaginary electric field")
 plt.legend()
