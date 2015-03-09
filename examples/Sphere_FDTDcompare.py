@@ -57,37 +57,38 @@ axes[2].imshow(fdtd_real)
 #print(np.shape(fdtd_real))
 axes[2].set_title("FDTD real")
 
+
 ## Mie plots
 #print(np.shape(np.arange(size)), np.shape(  np.angle(mieECartX.flatten())   ))
-axes[3].plot(np.angle(mieECart[0]) )
-axes[3].set_title("Mie phase")
+axes[3].imshow(np.angle(mieECart[0]) )
+axes[3].set_title("Mie phase Ex")
 
-axes[4].plot(mieECart[0].imag )
-axes[4].set_title("Mie imag")
+axes[4].imshow(mieECart[0].imag )
+axes[4].set_title("Mie imag Ex")
 
-axes[5].plot(mieECart[0].real )
-axes[5].set_title("Mie real")
-
-
-
-axes[6].plot(np.angle(mieECart[1]) )
-axes[6].set_title("Mie phase")
-
-axes[7].plot(mieECart[1].imag )
-axes[7].set_title("Mie imag")
-
-axes[8].plot(mieECart[1].real )
-axes[8].set_title("Mie real")
+axes[5].imshow(mieECart[0].real )
+axes[5].set_title("Mie real Ex")
 
 
 
-axes[9].plot(np.angle(mieECart[2]) )
-axes[9].set_title("Mie phase")
+axes[6].imshow(np.angle(mieECart[1]) )
+axes[6].set_title("Mie phase Ey")
 
-axes[10].plot(mieECart[2].imag )
-axes[10].set_title("Mie imag")
+axes[7].imshow(mieECart[1].imag )
+axes[7].set_title("Mie imag Ey")
 
-axes[11].plot(mieECart[2].real )
-axes[11].set_title("Mie real")
+axes[8].imshow(mieECart[1].real )
+axes[8].set_title("Mie real Ey")
+
+
+
+axes[9].imshow(np.angle(mieECart[2]) )
+axes[9].set_title("Mie phase Ez")
+
+axes[10].imshow(mieECart[2].imag )
+axes[10].set_title("Mie imag Ez")
+
+axes[11].imshow(mieECart[2].real )
+axes[11].set_title("Mie real Ez")
 
 plt.show()
