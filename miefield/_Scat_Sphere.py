@@ -23,7 +23,7 @@ from ._Classes import *
 from ._Functions import *
 
 
-__all__ = ["GetFieldSphere"]
+__all__ = ["GetFieldSphere", "io_GetCartesianField2D" ]
 
 def GetFieldSphere(radius, nmed, nsphe, lD, size, res):
 
@@ -231,6 +231,7 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
 
             # num =  + sqrt(mu_d.*eps)*ones(1,N).      *transpose(ric_besselj(nu,k*radius))  .     *transpose(ric_besselj_derivative(nu,k_d*radius)) ...
             #        - sqrt(mu.*eps_d)*ones(1,N).      *transpose(ric_besselj(nu,k_d*radius)).     *transpose(ric_besselj_derivative(nu,k*radius));
+
             num = ( (np.sqrt(mu_d*eps)*np.ones((1, N))) * np.transpose(ric_besselj(nu, k*radius))  *np.transpose(ric_besselj_derivative(nu, k_d*radius))
                    -(np.sqrt(mu*eps_d)*np.ones((1, N))) * np.transpose(ric_besselj(nu, k_d*radius))*np.transpose(ric_besselj_derivative(nu, k*radius))   )
 
@@ -238,9 +239,10 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
             #       - sqrt(mu_d.*eps)*ones(1,N).        *transpose(ric_besselh(nu,2,k*radius)).      *transpose(ric_besselj_derivative(nu,k_d*radius));
             den = ( (np.sqrt(mu*eps_d)*np.ones((1, N))) * np.transpose(ric_besselj(nu, k_d*radius))  * np.transpose(ric_besselh_derivative(nu, 2, k*radius))
                    -(np.sqrt(mu_d*eps)*np.ones((1, N))) * np.transpose(ric_besselh(nu, 2, k*radius)) * np.transpose(ric_besselj_derivative(nu, k_d*radius)))
-               
+
             #b_n = num./den.*a_n;
             b_n = num/den*a_n
+
             
             
             #num =  + sqrt(mu_d.*eps)*ones(1,N).        *transpose(ric_besselj(nu,k_d*radius)).     *transpose(ric_besselj_derivative(nu,k*radius))...
@@ -271,7 +273,10 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
                               np.transpose(kzlegendre(nu, 1, np.cos(theta[elem])))         )       #HHH obviously, specific theta[elem] is used for alpha[elem]             
             
             #E_r = -j*cos(phi)*sum(b_n.*alpha, 2);
-            E_r[elem] = -1j*np.cos(phi[elem]) * np.sum(b_n*alpha, 1)                    #HHH use specific row of phi to get a single number
+            #print(b_n)
+            #print(np.shape(alpha))
+            #print(-1j*np.cos(phi[elem]),np.sum(b_n*alpha, 1) )
+            E_r[elem] = -1j*np.cos(phi[elem]) * np.sum(b_n*alpha, 1)                    #HHH use specific row of phi to get a single number            
             #H_r = -j*sin(phi)*sum(c_n.*alpha, 2)./eta;
             H_r[elem] = -1j*np.sin(phi[elem]) * np.sum(c_n*alpha, 1)/eta                #HHH use specific row of phi to get a single number
         
@@ -305,3 +310,117 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
         
     
     return [E_r, E_theta, E_phi, H_r, H_theta, H_phi]
+    
+    
+def io_GetCartesianField2D(field, lD, size, res):
+    """
+        Fields are saved in spherical coordinates
+        convert them to cartesian coordinates.
+        fname must contain the "phi" component.
+        
+        plotDielectricSphereTotalFieldUnderPlaneWave from Zhu:
+        Wave propagates in +z-direction.
+        
+        Data is in spherical coordinates.
+        
+        y
+        ^ x
+        |/
+        ----> z  
+              
+         sphere       detector   
+                           ,  (xD,yD,zD=lD)   
+           ___            /|
+         /     \         | | 
+        |(0,0,0)|        | | 
+         \ ___ /         | | 
+                         |/  (xD,yD,zD=lD)  
+                         ´ 
+        
+        
+    """
+    #Er = io_OpenDatField2D(DIR, fname[:-7]+"r.dat")
+    Er     = field[0].flatten()
+    #Etheta = io_OpenDatField2D(DIR, fname[:-7]+"theta.dat")
+    Etheta = field[1].flatten()
+    #Ephi = io_OpenDatField2D(DIR, fname)
+    Ephi   = field[2].flatten()
+    # Define cartesian coordinates.
+    #info = io_GetInfoZhu(fname)
+    
+    
+    #sd = info["size of detector [px]"]
+    #xlim = sd/2*info["effective pixel size [wavelengths]"]
+    xlim = size / res / 2.0
+    car = np.linspace(-xlim, xlim, size, endpoint=True)
+
+ #   x = info["axial measurement position [wavelengths]"]
+ #   z = car.reshape(-1,1)
+ #   y = car.reshape(1,-1)
+ #
+ #   r_plane = np.sqrt(x**2 + y**2)
+ #   phi = np.arctan2(y,x)
+ #   theta = np.arctan2(r_plane,z)
+    
+
+    # NOTE: Zhu coordinates are in wavelengths
+    #z = info["axial measurement position [wavelengths]"]
+    z = lD 
+    #x,y = np.meshgrid(-car,car)
+    x = car.reshape(1,-1)
+    y = car.reshape(-1,1)
+    #x,y = np.meshgrid(car,car)
+    # Define spherical coordinates
+ 
+ 
+    # [rmin, rmax]
+    r_plane = np.sqrt(x**2 + y**2)
+ 
+    r_full = np.sqrt(x**2 + y**2 +z**2)
+    # [0, 2pi]
+    phi = np.arctan2(y,x)
+ 
+    # [0, theta_max]
+    theta = np.arctan2(z,r_plane)
+    # z = r cos(theta) 
+    
+    #theta = np.arccos(z/r_full)    
+    
+    
+    # E = Er * er + Ephi * ephi + Etheta * etheta
+    # er =       sin(theta)cos(phi)   ex
+    #           +sin(theta)sin(phi)   ey
+    #           +cos(theta)           ez
+    #
+    # ephi =   -sin(phi)              ex
+    #          +cos(phi)              ey
+    #
+    # etheta =  cos(theta)cos(phi)    ex
+    #          +cos(theta)sin(phi)    ey
+    #          -sin(theta)            ez
+    
+    # Therefore:
+    # Ex =   Er     *  sin(theta)cos(phi)
+    #       +Ephi   * -sin(phi)
+    #       +Etheta *  cos(theta)cos(phi)
+    #
+    # Ey =   Er     * +sin(theta)sin(phi)
+    #       +Ephi   *  cos(phi)
+    #       +Etheta * +cos(theta)sin(phi)
+    #
+    # Ez =   Er     *  cos(theta)
+    #       +Etheta * -sin(theta)
+
+    Ex =(   Er     *  np.sin(theta)*np.cos(phi)
+           +Ephi   * -np.sin(phi)
+           +Etheta *  np.cos(theta)*np.cos(phi)    )
+    
+    Ey =(   Er     *  np.sin(theta)*np.sin(phi)
+           +Ephi   *  np.cos(phi)
+           +Etheta *  np.cos(theta)*np.sin(phi)    )
+
+    Ez =(   Er     *  np.cos(theta)
+           +Etheta * -np.sin(theta)    )
+
+
+    return [Ex,Ey,Ez]

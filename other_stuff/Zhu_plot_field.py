@@ -48,7 +48,7 @@ from scatrid import filters
 from tool import *
 
 
-def io_GetCartesianField2D(DIR, fname):
+def io_GetCartesianField2D(field, lD, size, res):
     """
         Fields are saved in spherical coordinates
         convert them to cartesian coordinates.
@@ -75,15 +75,20 @@ def io_GetCartesianField2D(DIR, fname):
         
         
     """
-    Ephi = io_OpenDatField2D(DIR, fname)
-    Er = io_OpenDatField2D(DIR, fname[:-7]+"r.dat")
-    Etheta = io_OpenDatField2D(DIR, fname[:-7]+"theta.dat")
+    #Er = io_OpenDatField2D(DIR, fname[:-7]+"r.dat")
+    Ephi = field[0].flatten()
+    #Etheta = io_OpenDatField2D(DIR, fname[:-7]+"theta.dat")
+    Ephi = field[1].flatten()
+    #Ephi = io_OpenDatField2D(DIR, fname)
+    Ephi = field[2].flatten()
     # Define cartesian coordinates.
-    info = io_GetInfoZhu(fname)
+    #info = io_GetInfoZhu(fname)
     
     
-    sd = info["size of detector [px]"]
-    xlim = sd/2*info["effective pixel size [wavelengths]"]
+    #sd = info["size of detector [px]"]
+    sd = res
+    #xlim = sd/2*info["effective pixel size [wavelengths]"]
+    xlim = sd/2*size
     car = np.linspace(-xlim, xlim, sd, endpoint=True)
 
  #   x = info["axial measurement position [wavelengths]"]
@@ -96,7 +101,8 @@ def io_GetCartesianField2D(DIR, fname):
     
 
     # NOTE: Zhu coordinates are in wavelengths
-    z = info["axial measurement position [wavelengths]"]
+    #z = info["axial measurement position [wavelengths]"]
+    z = lD 
     #x,y = np.meshgrid(-car,car)
     x = car.reshape(1,-1)
     y = car.reshape(-1,1)
@@ -156,7 +162,7 @@ def io_GetCartesianField2D(DIR, fname):
 
     import IPython
     IPython.embed()
-    return Ex
+    return [Ex,Ey,Ez]
     
     
 def io_OpenDatField2D(DIR, fname):

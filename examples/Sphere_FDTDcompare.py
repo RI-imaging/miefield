@@ -34,14 +34,15 @@ size = fdtd.shape[0] # pixel number of the planar detector
 
 # TODO:
 # Mie computation
-mie = miefield.GetFieldSphere(radius, nmed, nsphe, lD, size, res)
-mie_bg = miefield.GetFieldSphere(radius, nmed, nmed, lD, size, res)      #HHH not working
-mieE=mie[0]
-mie_bgE=mie_bg[0]
+mie     = miefield.GetFieldSphere(radius, nmed, nsphe, lD, size, res)
+mieECart = miefield.io_GetCartesianField2D(mie, lD, size, res)
+#mie_bg = miefield.GetFieldSphere(radius, nmed, nmed, lD, size, res)      #HHH not working
+
+#mie_bgE=mie_bg[0]
 
 #mieE /= mie_bg
 
-fig, axes = plt.subplots(2,3)
+fig, axes = plt.subplots(4,3)
 
 axes = axes.flatten()
 
@@ -53,16 +54,40 @@ axes[1].imshow(fdtd_imag)
 axes[1].set_title("FDTD imag")
 
 axes[2].imshow(fdtd_real)
+#print(np.shape(fdtd_real))
 axes[2].set_title("FDTD real")
 
 ## Mie plots
-axes[3].plot(np.arange(size), np.angle(mieE) )
+#print(np.shape(np.arange(size)), np.shape(  np.angle(mieECartX.flatten())   ))
+axes[3].plot(np.angle(mieECart[0]) )
 axes[3].set_title("Mie phase")
 
-axes[4].plot(np.arange(size), mieE.imag )
+axes[4].plot(mieECart[0].imag )
 axes[4].set_title("Mie imag")
 
-axes[5].plot(np.arange(size), mieE.real )
+axes[5].plot(mieECart[0].real )
 axes[5].set_title("Mie real")
+
+
+
+axes[6].plot(np.angle(mieECart[1]) )
+axes[6].set_title("Mie phase")
+
+axes[7].plot(mieECart[1].imag )
+axes[7].set_title("Mie imag")
+
+axes[8].plot(mieECart[1].real )
+axes[8].set_title("Mie real")
+
+
+
+axes[9].plot(np.angle(mieECart[2]) )
+axes[9].set_title("Mie phase")
+
+axes[10].plot(mieECart[2].imag )
+axes[10].set_title("Mie imag")
+
+axes[11].plot(mieECart[2].real )
+axes[11].set_title("Mie real")
 
 plt.show()
