@@ -78,28 +78,33 @@ def cart2sph(x,y,z):
          - theta  in [0 pi]
          - phi    in [0 2*pi)
     """
+    r     = np.zeros((np.size(x)*np.size(y),1))          #HHH instead of flattening outside, I'm gonna build the variables flat, in a column from the begining
+    theta = np.zeros((np.size(x)*np.size(y),1))
+    phi   = np.zeros((np.size(x)*np.size(y),1))
 
-    for elem in range (0,np.size(x)):              #HHH gotta evaluate all elements, one by one, of x
-        if x[elem]==0 and y[elem]==0 and z[elem]==0:
-            r = 0
-            theta = 0
-            phi = 0
-        else:
-            hypotxy = hypot(x,y)
-            r       = hypot(hypotxy,z)
-            theta   = np.arccos(z/r)
-            phi     = 0;
-            #print(r)
-            if x[elem]==0 and y[elem]==0:
-                phi = 0
-            elif x[elem] >= 0 and y[elem] >= 0:
-                phi = np.arcsin(y/hypotxy)
-            elif x[elem] <= 0 and y[elem] >= 0:
-                phi = np.pi - np.arcsin(y/hypotxy)
-            elif x[elem] <= 0 and y[elem] <= 0:
-                phi = np.pi - np.arcsin(y/hypotxy)
-            elif x[elem] >= 0 and y[elem] <= 0:
-                phi = 2*np.pi + np.arcsin(y/hypotxy)
+    for elem in range(0,np.size(x)):                #HHH gotta evaluate all elements, one by one, of x
+        for elem2 in range(0,np.size(y)):           #HHH same for y. z doesn't matter since all elements are the same value (the distance to the detecter lD+lambref)
+
+            if x[elem]==0 and y[elem2]==0 and z[elem]==0:
+                r[(elem*np.size(x))+elem2]     = 0           #since every change of the first for equals np.size(x) times changes of the second for.... (elem*3)+elem2
+                theta[(elem*np.size(x))+elem2] = 0
+                phi[(elem*np.size(x))+elem2]   = 0
+            else:
+                hypotxy       = hypot(x[elem],y[elem2])
+                r[(elem*np.size(x))+elem2]       = hypot(hypotxy,z[elem])
+                theta[(elem*np.size(x))+elem2]   = np.arccos(z[elem]/r[(elem*np.size(x))+elem2])
+                phi[(elem*np.size(x))+elem2]     = 0;
+                #print(r)
+                if x[elem]==0 and y[elem2]==0:
+                    phi[(elem*np.size(x))+elem2] = 0
+                elif x[elem] >= 0 and y[elem2] >= 0:
+                    phi[(elem*np.size(x))+elem2] = np.arcsin(y[elem2]/hypotxy)
+                elif x[elem] <= 0 and y[elem2] >= 0:
+                    phi[(elem*np.size(x))+elem2] = np.pi - np.arcsin(y[elem2]/hypotxy)
+                elif x[elem] <= 0 and y[elem] <= 0:
+                    phi[(elem*np.size(x))+elem2] = np.pi - np.arcsin(y[elem2]/hypotxy)
+                elif x[elem] >= 0 and y[elem2] <= 0:
+                    phi[(elem*np.size(x))+elem2] = 2*np.pi + np.arcsin(y[elem2]/hypotxy)
     return [r, theta, phi]
 
 

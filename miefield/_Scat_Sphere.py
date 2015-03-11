@@ -29,15 +29,17 @@ def GetFieldSphere(radius, nmed, nsphe, lD, size, res):
 
     sphere = DielectricMaterial(nsphe**2,0.0)
     background = DielectricMaterial(nmed**2,0.0)
-    reference =  DielectricMaterial(1,0.0)
+    reference =  DielectricMaterial(nmed**2,0.0)        #HHH reference is medium...
     lambref = reference.getElectromagneticWavelength(1.0)
     xmax = size / res / 2.0
+
     # the detector resolution is not dependent on the medium
     detector = np.linspace(-xmax, xmax, size, endpoint=True) * lambref
     sensor_location = np.zeros((3,size))
-    sensor_location[0] = lD*lambref    # optical path length to detector
+    sensor_location[2] = lD*lambref    # optical path length to detector
     sensor_location[1] = detector
-    sensor_location[2] = detector  #HHH 3D experience
+    sensor_location[0] = detector  #HHH 3D experience
+
     return getDielectricSphereFieldUnderPlaneWave(radius*lambref, 
              sphere, background, sensor_location)
     
@@ -85,15 +87,19 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
     #    np.disp((p.Results))
     
     # Compute all intrinsic variables
+    
+    EPS_O     = 8.8541878176*1e-12;       #HHH ....this was not here before. changes results BY A LOT hmm.........
+    MU_O      = 4*np.pi*1e-7;             #HHH as above
+    
     omega = 2.*np.pi*frequency
     eta = background.getIntrinsicImpedance(frequency)
     k = background.getElectromagneticWaveNumber(frequency)
-    mu = background.getComplexPermeability(frequency)
-    eps = background.getComplexPermittivity(frequency)
+    mu = background.getComplexPermeability(frequency) * MU_O        #HHH as mentioned, this multiplication was not being done.....
+    eps = background.getComplexPermittivity(frequency) * EPS_O      #HHH as above
     eta_d = sphere.getIntrinsicImpedance(frequency)
     k_d = sphere.getElectromagneticWaveNumber(frequency)
-    mu_d = sphere.getComplexPermeability(frequency)
-    eps_d = sphere.getComplexPermittivity(frequency)
+    mu_d = sphere.getComplexPermeability(frequency) * MU_O          #HHH as above above
+    eps_d = sphere.getComplexPermittivity(frequency) * EPS_O        #HHH as above above above
     
 
         
@@ -103,10 +109,11 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
     #N = matcompat.max(N)
 
     nu = np.arange(N) + 1 
+
     [r, theta, phi] = cart2sph(sensor_location[0], sensor_location[1], sensor_location[2])
-    r.resize(len(r),1)
-    theta.resize(len(theta),1)
-    phi.resize(len(phi),1)
+    #r.resize(len(r),1)              #HHH This is used to flatten to a column. Deprecated because I changed cart2sph to build the variables in column already.
+    #theta.resize(len(theta),1)      #HHH as above
+    #phi.resize(len(phi),1)          #HHH as above above
     # Compute coefficients 
     a_n = 1j**(-nu) * (2*nu+1) / (nu*(nu+1))
     
@@ -157,23 +164,24 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
     
     
     #HHH initializing final result, and adding 0j so it's imaginary from the start
-    E_r        = np.zeros(np.shape(theta)) + 0j
-    E_theta    = np.zeros(np.shape(theta)) + 0j
-    E_phi      = np.zeros(np.shape(theta)) + 0j
-    H_r        = np.zeros(np.shape(theta)) + 0j
-    H_theta    = np.zeros(np.shape(theta)) + 0j
-    H_phi      = np.zeros(np.shape(theta)) + 0j   
-    
-    for elem in range (0,np.size(r)):         #HHH gotta evaluate element by element in r (which is a column array)
-        #print("elem: ",elem, "is r: ",r[elem],"/",radius,"out of ", np.size(r))
-    
+    E_r        = np.zeros(np.shape(r)) + 0j
+    E_theta    = np.zeros(np.shape(r)) + 0j
+    E_phi      = np.zeros(np.shape(r)) + 0j
+    H_r        = np.zeros(np.shape(r)) + 0j
+    H_theta    = np.zeros(np.shape(r)) + 0j
+    H_phi      = np.zeros(np.shape(r)) + 0j  
+
+    for elem in range(0,np.size(r)):         #HHH gotta evaluate element by element in r (which is a column array)
+        
         if r[elem] < radius:
             #num = j.*mu_d/sqrt(mu)*sqrt(eps_d);
             num = 1j*mu_d/np.sqrt(mu)*np.sqrt(eps_d)
+            #print("num",num)
             #den =  - sqrt(mu.  *eps_d)    *ones(1,N).       *transpose(ric_besselj(nu,k_d*radius)).    *transpose(ric_besselh_derivative(nu,2,k*radius))...
             #       + sqrt(mu_d.*eps)      *ones(1,N).       *transpose(ric_besselh(nu,2,k*radius)).    *transpose(ric_besselj_derivative(nu,k_d*radius));
             den = ( - (np.sqrt(mu   * eps_d)*np.ones((1,N))) * np.transpose(ric_besselj(nu,k_d*radius)) * np.transpose(ric_besselh_derivative(nu,2,k*radius))
                     + (np.sqrt(mu_d * eps  )*np.ones((1,N))) * np.transpose(ric_besselh(nu,2,k*radius)) * np.transpose(ric_besselj_derivative(nu,k_d*radius))    )
+            #print("den",den)
             #d_n = num*ones(1,N)./den.*a_n;
             d_n = num*np.ones((1, N))/den*a_n
         
@@ -195,9 +203,10 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
                               np.transpose(kzlegendre(nu, 1, np.cos(theta[elem])))         )       #HHH obviously, specific theta[elem] is used for alpha            
                                        
             # E_r = -j*cos(phi)*sum(d_n.*alpha, 2);
-            E_r[elem] = -1j*np.cos(phi[elem]) * np.sum(d_n*alpha, 1)                    #HHH use specific row of phi to get a single number
+            E_r[elem] = (-1j*np.cos(phi[elem]) * np.sum(d_n*alpha, 1))[0]                    #HHH use specific row of phi to get a single number
+            print("elem:",elem,"/",np.size(r), "is r:",r[elem],"/",radius,"with E_r:",E_r[elem])
             #H_r  = -j*sin(phi)*sum(e_n.*alpha, 2)./eta_d;
-            H_r[elem] = -1j*np.sin(phi[elem]) * np.sum(e_n*alpha, 1)/eta_d              #HHH use specific row of phi to get a single number
+            H_r[elem] = (-1j*np.sin(phi[elem]) * np.sum(e_n*alpha, 1)/eta_d)[0]              #HHH use specific row of phi to get a single number
 
             ## Implement (11-239b) in [Balanis1989]
             #alpha = transpose(ric_besselj_derivative(nu,x)).*temp1;
@@ -207,11 +216,11 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
             # summation = j*d_n.*alpha - e_n.*beta;
             summation = 1j*d_n*alpha-e_n*beta
             # E_theta   = cos(phi)./x.*sum(summation,2);
-            E_theta[elem] = np.cos(phi[elem])/x*np.sum(summation, 1)
+            E_theta[elem] = (np.cos(phi[elem])/x*np.sum(summation, 1))[0]
             # summation = j*e_n.*alpha - d_n.*beta;
             summation = 1j*e_n*alpha - d_n*beta
             # H_theta = sin(phi)./x.*sum(summation,2)./eta_d;
-            H_theta[elem] = np.sin(phi[elem])/x*np.sum(summation, 1)/eta_d
+            H_theta[elem] = (np.sin(phi[elem])/x*np.sum(summation, 1)/eta_d)[0]
 
             ## Implement (11-239c) in [Balanis1989]
             # alpha = transpose(ric_besselj_derivative(nu,x)).*temp2;
@@ -221,11 +230,11 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
             # summation = j*d_n.*alpha - e_n.*beta;
             summation = 1j*d_n*alpha - e_n*beta
             # E_phi = sin(phi)./x.*sum(summation,2);
-            E_phi[elem] = np.sin(phi[elem])/x*np.sum(summation, 1)
+            E_phi[elem] = (np.sin(phi[elem])/x*np.sum(summation, 1))[0]
             # summation = j*e_n.*alpha - d_n.*beta;
             summation = 1j*e_n*alpha - d_n*beta
             # H_phi     =-cos(phi)./x.*sum(summation,2)./eta_d;
-            H_phi[elem] = -np.cos(phi[elem])/x*np.sum(summation, 1)/eta_d
+            H_phi[elem] = (-np.cos(phi[elem])/x*np.sum(summation, 1)/eta_d)[0]
         
         else:
 
@@ -239,6 +248,7 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
             #       - sqrt(mu_d.*eps)*ones(1,N).        *transpose(ric_besselh(nu,2,k*radius)).      *transpose(ric_besselj_derivative(nu,k_d*radius));
             den = ( (np.sqrt(mu*eps_d)*np.ones((1, N))) * np.transpose(ric_besselj(nu, k_d*radius))  * np.transpose(ric_besselh_derivative(nu, 2, k*radius))
                    -(np.sqrt(mu_d*eps)*np.ones((1, N))) * np.transpose(ric_besselh(nu, 2, k*radius)) * np.transpose(ric_besselj_derivative(nu, k_d*radius)))
+
 
             #b_n = num./den.*a_n;
             b_n = num/den*a_n
@@ -273,12 +283,10 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
                               np.transpose(kzlegendre(nu, 1, np.cos(theta[elem])))         )       #HHH obviously, specific theta[elem] is used for alpha[elem]             
             
             #E_r = -j*cos(phi)*sum(b_n.*alpha, 2);
-            #print(b_n)
-            #print(np.shape(alpha))
-            #print(-1j*np.cos(phi[elem]),np.sum(b_n*alpha, 1) )
-            E_r[elem] = -1j*np.cos(phi[elem]) * np.sum(b_n*alpha, 1)                    #HHH use specific row of phi to get a single number            
+            E_r[elem] = (-1j*np.cos(phi[elem]) * np.sum(b_n*alpha, 1))[0]                    #HHH use specific row of phi to get a single number. [0] to extract from array            
+            print("elem:",elem,"/",np.size(r), "is r:",r[elem],"/",radius,"with E_r:",E_r[elem])            
             #H_r = -j*sin(phi)*sum(c_n.*alpha, 2)./eta;
-            H_r[elem] = -1j*np.sin(phi[elem]) * np.sum(c_n*alpha, 1)/eta                #HHH use specific row of phi to get a single number
+            H_r[elem] = (-1j*np.sin(phi[elem]) * np.sum(c_n*alpha, 1)/eta)[0]                #HHH use specific row of phi to get a single number. [0] to extract from array
         
             ## Implement (11-239b) in [Balanis1989]
             #alpha = transpose(ric_besselh_derivative(nu,2,x)).*temp1;
@@ -288,11 +296,11 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
             #summation = j*b_n.*alpha - c_n.*beta;
             summation = 1j*b_n*alpha - c_n*beta
             #E_theta = cos(phi)./x.*sum(summation,2);
-            E_theta[elem] = np.cos(phi[elem])/x*np.sum(summation, 1)
+            E_theta[elem] = (np.cos(phi[elem])/x*np.sum(summation, 1))[0]
             #summation = j*c_n.*alpha - b_n.*beta;
             summation = 1j*c_n*alpha - b_n*beta
             #H_theta = sin(phi)./x.*sum(summation,2)./eta;
-            H_theta[elem] = np.sin(phi[elem])/x*np.sum(summation, 1)/eta
+            H_theta[elem] = (np.sin(phi[elem])/x*np.sum(summation, 1)/eta)[0]
             
             ## Implement (11-239c) in [Balanis1989]
             #alpha     = transpose(ric_besselh_derivative(nu,2,x)).*temp2;
@@ -302,13 +310,18 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
             #summation = j*b_n.*alpha - c_n.*beta;
             summation = 1j*b_n*alpha - c_n*beta
             #E_phi = sin(phi)./x.*sum(summation,2);
-            E_phi[elem] = np.sin(phi[elem])/x*np.sum(summation, 1)
+            E_phi[elem] = (np.sin(phi[elem])/x*np.sum(summation, 1))[0]
             #summation = j*c_n.*alpha - b_n.*beta;
             summation = 1j*c_n*alpha - b_n*beta
             #H_phi =-cos(phi)./x.*sum(summation,2)./eta;
-            H_phi[elem] = -np.cos(phi[elem])/x*np.sum(summation, 1)/eta
-        
-    
+            H_phi[elem] = (-np.cos(phi[elem])/x*np.sum(summation, 1)/eta)[0]
+
+    E_r.resize(np.size(sensor_location[0]),np.size(sensor_location[1]))        #HHH this will make the shape akin to matlab's results  
+    E_theta.resize(np.size(sensor_location[0]),np.size(sensor_location[1]))
+    E_phi.resize(np.size(sensor_location[0]),np.size(sensor_location[1]))
+    H_r.resize(np.size(sensor_location[0]),np.size(sensor_location[1]))
+    H_theta.resize(np.size(sensor_location[0]),np.size(sensor_location[1]))
+    H_phi.resize(np.size(sensor_location[0]),np.size(sensor_location[1]))    
     return [E_r, E_theta, E_phi, H_r, H_theta, H_phi]
     
     
@@ -340,11 +353,11 @@ def io_GetCartesianField2D(field, lD, size, res):
         
     """
     #Er = io_OpenDatField2D(DIR, fname[:-7]+"r.dat")
-    Er     = field[0].flatten()
+    Er     = field[0]
     #Etheta = io_OpenDatField2D(DIR, fname[:-7]+"theta.dat")
-    Etheta = field[1].flatten()
+    Etheta = field[1]
     #Ephi = io_OpenDatField2D(DIR, fname)
-    Ephi   = field[2].flatten()
+    Ephi   = field[2]
     # Define cartesian coordinates.
     #info = io_GetInfoZhu(fname)
     
@@ -375,6 +388,7 @@ def io_GetCartesianField2D(field, lD, size, res):
  
     # [rmin, rmax]
     r_plane = np.sqrt(x**2 + y**2)
+
  
     r_full = np.sqrt(x**2 + y**2 +z**2)
     # [0, 2pi]
@@ -382,6 +396,7 @@ def io_GetCartesianField2D(field, lD, size, res):
  
     # [0, theta_max]
     theta = np.arctan2(z,r_plane)
+
     # z = r cos(theta) 
     
     #theta = np.arccos(z/r_full)    
