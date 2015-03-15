@@ -79,7 +79,7 @@ def GetFieldCylinder(radius, nmed, ncyl, lD, size, res):
     background = DielectricMaterial(nmed**2,0.0)
     reference =  DielectricMaterial(1,0.0)
     lambref = reference.getElectromagneticWavelength(1.0)
-    xmax = size / res / 2.0
+    xmax = size / res / 2
     # the detector resolution is not dependent on the medium
     detector = np.linspace(-xmax, xmax, size, endpoint=True) * lambref
     sensor_location = np.zeros((2,size))
