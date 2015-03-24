@@ -1,5 +1,17 @@
+from __future__ import division, print_function
+
+from matplotlib import pyplot as plt
+import numpy as np
+import os
+from os.path import abspath, dirname, join, split
+import sys
+
+
 import matplotlib.pylab as plt
 import numpy as np
+
+sys.path.insert(0, split(dirname(abspath(__file__)))[0])
+
 import miefield
 
 radius = 5 # radius of the cylinder in wavelengths

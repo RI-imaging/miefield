@@ -23,7 +23,7 @@ radius = 5.0 # radius of the cylinder in wavelengths
 nmed = 1.333 # refractive index of surrounding medium
 nsphe = 1.34 # refractive index of the cylinder
 lD = 6.0 # distance from center of cylinder to planar detector
-res = 13.0 # pixels per vacuum wavelength at the detector line
+res = 2.0 # pixels per vacuum wavelength at the detector line
 
 # FDTD
 fdtd_real = np.loadtxt(zf.open("fdtd_real.txt"))
