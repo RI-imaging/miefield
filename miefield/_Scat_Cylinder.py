@@ -13,8 +13,10 @@
 
 from __future__ import division, print_function
 
+import multiprocessing as mp
 import numpy as np
 import os
+import warnings
 
 from ._Classes import *
 from ._Functions import *
@@ -90,61 +92,6 @@ def GetFieldCylinder(radius, nmed, ncyl, lD, size, res):
              cylinder, background, sensor_location).flatten()
 
 
-
-def GetSinogramCylinderRotation(radius, nmed, ncyl, lD, lC, size, A,
-                                res):
-    """ Computes sinogram with Mie solution for displaced cylinder
-    
-    
-    
-    Parameters
-    ----------
-    radius : float
-        Radius of the cylinder in vacuum wavelengths.
-    nmed : float
-        Refractive index of the surrounding medium.
-    ncyl : float
-        Refractive index of the cylinder.
-    lD : float
-        Distance lD from the detector to the rotational center
-        in vacuum wavelengths.
-    lC : float
-        Distance from the center of the cylinder to the rotational
-        center in vacuum waveengths.
-    size : float
-        Detector size in pixels
-    A : int
-        Number of angles from zero to 2PI
-    res : float
-        Resolution of detector in pixels per vacuum wavelength.
-
-
-    Returns
-    -------
-    out : one-dimensional ndarray of length `size`, complex
-        Electric field at the detector.
-    
-    
-    See Also
-    --------
-    `GetFieldCylinderDisplaced` for a sketch
-    
-    """
-    warnings.warn("This functions has not been verified!")
-    sino = np.zeros((A,size), dtype=np.complex)
-    angles = np.linspace(0, 2*np.pi, A, endpoint=False)
-    for i in range(A):
-        ang = angles[i]
-        zc = lC*np.cos(ang)
-        xc = lC*np.sin(ang)
-
-        pos = (xc, zc)
-        print(i, pos, norm(pos)) 
-        sino[i] = GetFieldCylinderDisplaced(radius, nmed, ncyl, lD,
-                                            size, pos, res)
-    return sino
-
-
 def GetFieldCylinderDisplaced(radius, nmed, ncyl, lD, size, pos, res):
     """ Computes the Mie solution for a dielectric cylinder.
         
@@ -198,7 +145,6 @@ def GetFieldCylinderDisplaced(radius, nmed, ncyl, lD, size, pos, res):
     Guangran Kevin Zhu:
     http://www.mathworks.de/matlabcentral/fileexchange/30162-cylinder-scattering
     """
-    warnings.warn("This functions has not been verified!")
     (xc, zc) = pos
     #zc = 0
     cylinder = DielectricMaterial(ncyl**2,0.0)
@@ -206,15 +152,84 @@ def GetFieldCylinderDisplaced(radius, nmed, ncyl, lD, size, pos, res):
     reference =  DielectricMaterial(1,0.0)
     lambref = reference.getElectromagneticWavelength(1.0)
     # compute xmax in wavelengths
-    xmax = size / res / 2.0
+    xmax = size / res / 2
     # the detector resolution is not dependent on the medium
-    detector = np.linspace(-xmax-xc, xmax-xc, size, endpoint=False) * lambref
+    detector = np.linspace(-xmax-xc, xmax-xc, size, endpoint=True) * lambref
     sensor_location = np.zeros((2,size))
-    print(lD-zc)
+    print("Position of cylinder:", pos)
     sensor_location[0,:] = (lD-zc)*lambref    # real distance to detector
     sensor_location[1,:] = detector
     return getDielectricCylinderFieldUnderPlaneWave(radius*lambref, 
              cylinder, background, sensor_location).flatten()
+
+
+def GetSinogramCylinderRotation(radius, nmed, ncyl, lD, lC, size, A,
+                                res):
+    """ Computes sinogram with Mie solution for displaced cylinder
+    
+    
+    
+    Parameters
+    ----------
+    radius : float
+        Radius of the cylinder in vacuum wavelengths.
+    nmed : float
+        Refractive index of the surrounding medium.
+    ncyl : float
+        Refractive index of the cylinder.
+    lD : float
+        Distance lD from the detector to the rotational center
+        in vacuum wavelengths.
+    lC : float
+        Distance from the center of the cylinder to the rotational
+        center in vacuum waveengths.
+    size : float
+        Detector size in pixels
+    A : int
+        Number of angles from zero to 2PI
+    res : float
+        Resolution of detector in pixels per vacuum wavelength.
+
+
+    Returns
+    -------
+    out : one-dimensional ndarray of length `size`, complex
+        Electric field at the detector.
+    
+    
+    See Also
+    --------
+    `GetFieldCylinderDisplaced` for a sketch
+    
+    
+    Notes
+    -----
+    There will be an offset in the computed phase. A background
+    correction is necessary.
+    
+    """
+    sino = np.zeros((A,size), dtype=np.complex)
+    angles = np.linspace(0, 2*np.pi, A, endpoint=False)
+    mpargs = list()
+    for i in range(A):
+        ang = angles[i]
+        zc = lC*np.cos(ang)
+        xc = lC*np.sin(ang)
+
+        pos = (xc, zc)
+        #print("Computing angle {} at position {} with norm {}".
+        #       format(i, pos, norm(pos)))
+        mpargs.append([radius, nmed, ncyl, lD, size, pos, res])
+    
+    pool = mp.Pool(processes=mp.cpu_count())
+    results = pool.map_async(_field_displ_wrapper, mpargs).get()
+    
+    #sino[i] = GetFieldCylinderDisplaced(radius, nmed, ncyl, lD,
+    #                                        size, pos, res)
+    return np.array(results)
+
+
+
 
 
 
@@ -449,3 +464,6 @@ if __name__ == "__main__":
         plt.show()
 
     IPython.embed()
+
+def _field_displ_wrapper(args):
+    return GetFieldCylinderDisplaced(*args)
