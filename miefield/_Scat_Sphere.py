@@ -15,9 +15,6 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-import os
-
-import scipy
 
 from ._Classes import *
 from ._Functions import *
@@ -91,7 +88,7 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
     EPS_O     = 8.8541878176*1e-12;       #HHH ....this was not here before. changes results BY A LOT hmm.........
     MU_O      = 4*np.pi*1e-7;             #HHH as above
     
-    omega = 2.*np.pi*frequency
+    #omega = 2.*np.pi*frequency
     eta = background.getIntrinsicImpedance(frequency)
     k = background.getElectromagneticWaveNumber(frequency)
     mu = background.getComplexPermeability(frequency) * MU_O        #HHH as mentioned, this multiplication was not being done.....
@@ -146,7 +143,7 @@ def getDielectricSphereFieldUnderPlaneWave(radius, sphere, background,
     #temp1 = np.dot(np.ones(nFreq, 1.), temp1)
     #temp2 = np.dot(np.ones(nFreq, 1.), temp2)
     
-    iNU = 10
+    #iNU = 10
     
     #if p.Results.debug:
     #    A = np.array(np.vstack((np.hstack((ric_besselh_derivative(iNU, 2., np.dot(k, radius)), np.dot(matdiv(-np.sqrt(np.dot(eps, mu)), np.sqrt(np.dot(eps_d, mu_d))), ric_besselj_derivative(iNU, np.dot(k_d, radius))))), np.hstack((ric_besselh(iNU, 2., np.dot(k, radius)), np.dot(matdiv(-mu, mu_d), ric_besselj(iNU, np.dot(k_d, radius))))))))
@@ -390,7 +387,7 @@ def io_GetCartesianField2D(field, lD, size, res):
     r_plane = np.sqrt(x**2 + y**2)
 
  
-    r_full = np.sqrt(x**2 + y**2 +z**2)
+    #r_full = np.sqrt(x**2 + y**2 +z**2)
     # [0, 2pi]
     phi = np.arctan2(y,x)
  

@@ -15,7 +15,6 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-import os
 
 from ._Classes import *
 from ._Functions import *
@@ -249,7 +248,7 @@ def getCylindricalWaveUsingCylindricalExpansion(background, source_location, sen
     H_rho               Nx1 vector (A/m)
     H_phi               Nx1 vector (A/m)
     """
-    omega          = 2*np.pi*frequency
+    #omega          = 2*np.pi*frequency
     EPS_O          = 8.854187817620389e-12
     
     [phi_s, rho_s] = cart2pol(source_location[0], source_location[1])
