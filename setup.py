@@ -18,8 +18,8 @@ http://www.mathworks.de/matlabcentral/fileexchange/30162-cylinder-scattering and
 http://de.mathworks.com/matlabcentral/fileexchange/31119-sphere-scattering
 """
 
-
-version="0"
+import miefield
+version=miefield.__version__
 
 
 class PyTest(Command):
