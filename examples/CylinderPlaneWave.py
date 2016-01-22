@@ -27,7 +27,8 @@ frequency = 1.0
 cylinder = DielectricMaterial(RI_cylinder**2,0.0)
 background = DielectricMaterial(RI_background**2,0.0)
 
-wavelength = background.getElectromagneticWavelength(frequency)
+reference =  DielectricMaterial(1,0.0)
+wavelength = reference.getElectromagneticWavelength(frequency)
     
 # The first example does not take too much time to compute
 print("Please wait, this may take a minute...")
