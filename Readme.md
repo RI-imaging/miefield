@@ -3,7 +3,7 @@ http://www.mathworks.de/matlabcentral/fileexchange/30162-cylinder-scattering and
 http://de.mathworks.com/matlabcentral/fileexchange/31119-sphere-scattering
 
 ### Project status
-The 2D scattering code for a cylinder is working. The 3D scattering code is not correctly implemented yet.
+The 2D scattering code for a cylinder is working. The 3D scattering code is not implemented correctly yet.
 
 ### Developer's note
 miefield requires a working installation of SciPy and NumPy.
