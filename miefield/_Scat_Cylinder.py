@@ -3,7 +3,7 @@
 """ 
     Mie solution 
     
-    Calculates the electric field component (Ez) for a line source that
+    Calculates the electric field component (Ez) for a plane wave that
     is scattered by a dielectric cylinder.
     
     Some of this code is a partial translation of the Matlab code from

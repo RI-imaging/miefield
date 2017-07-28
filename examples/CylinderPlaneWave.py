@@ -39,7 +39,7 @@ lenx = 100
 miny = -radius*1.2
 maxy = +radius*1.2 
 # from here we can
-leny = np.round(lenx * (maxy-miny)/(maxx-minx))
+leny = int(np.round(lenx * (maxy-miny)/(maxx-minx)))
 
 x = np.linspace(minx, maxx, lenx, endpoint=False)
 y = np.linspace(miny, maxy, leny, endpoint=False)
